@@ -49,96 +49,143 @@
     </div>
 
     <script>
-        const socket = io();
-        const myId = localStorage.getItem('userId');
-        const myName = localStorage.getItem('username');
-        let activePeerId = null;
+            const socket = io();
+            const myId = localStorage.getItem('userId');
+            const myName = localStorage.getItem('username');
+            let activePeerId = null;
 
-        if (!myId) window.location.href = '/';
+            if (!myId) window.location.href = '/';
 
-        // 1. Identify to Socket Server
-        socket.emit('register_online', myId);
+            // 1. Initial Load & Identity
+            socket.emit('register_online', myId);
+            loadFriends(); // Load permanent entities on startup
 
-        // 2. Search Logic (MariaDB)
-        async function searchUsers() {
-            const q = document.getElementById('search-bar').value;
-            if (!q) { document.getElementById('results-area').innerHTML = ''; return; }
-            
-            const res = await fetch(`/api/users/search?q=${q}&currentId=${myId}`);
-            const users = await res.json();
-            
-            document.getElementById('results-area').innerHTML = users.map(u => `
-                <div class="flex justify-between items-center p-3 hover:bg-zinc-800 rounded-lg transition-colors group">
-                    <span class="text-sm font-medium">${u.username}</span>
-                    <button onclick="sendRequest(${u.id}, '${u.username}')" class="text-emerald-500 opacity-0 group-hover:opacity-100 text-xs font-bold">INVITE</button>
-                </div>
-            `).join('');
-        }
+            // 2. Fetch Permanent Friends (Entities)
+            async function loadFriends() {
+                try {
+                    const res = await fetch(`/api/friends/${myId}`);
+                    const friends = await res.json();
+                    
+                    // We will display friends in the sidebar above the search results or in their own section
+                    const area = document.getElementById('results-area');
+                    area.innerHTML = '<h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 px-3">Your Tunnels</h3>';
+                    
+                    friends.forEach(f => {
+                        const div = document.createElement('div');
+                        div.className = "flex justify-between items-center p-3 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-zinc-700 mb-1";
+                        div.onclick = () => selectPeer(f.id, f.username);
+                        div.innerHTML = `
+                            <span class="text-sm font-medium text-zinc-300">${f.username}</span>
+                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+                        `;
+                        area.appendChild(div);
+                    });
+                } catch (err) { console.error("Entity load failed", err); }
+            }
 
-        // 3. Request Logic (Relay via Socket)
-        function sendRequest(toId, toName) {
-            socket.emit('send_request', { fromId: myId, toId, fromName: myName });
-            alert(`Request sent to ${toName}`);
-        }
-
-        socket.on('new_request', (data) => {
-            const div = document.createElement('div');
-            div.className = "p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-sm flex justify-between items-center";
-            div.innerHTML = `<span>${data.fromName}</span><button onclick="acceptChat(${data.fromId}, '${data.fromName}')" class="text-emerald-400 font-bold">ACCEPT</button>`;
-            document.getElementById('request-area').appendChild(div);
-        });
-
-        function acceptChat(id, name) {
-            activePeerId = id;
-            document.getElementById('active-user-name').innerText = `Chatting with ${name}`;
-            document.getElementById('request-area').innerHTML = ''; 
-            loadHistory();
-        }
-
-        // 4. Chat & Storage Logic (Browser SessionStorage Only)
-        function sendMessage() {
-            const text = document.getElementById('msg-input').value;
-            if (!activePeerId || !text) return;
-
-            socket.emit('private_message', { toId: activePeerId, fromId: myId, message: text });
-            saveAndRender(activePeerId, 'me', text);
-            document.getElementById('msg-input').value = '';
-        }
-
-        socket.on('receive_message', (data) => {
-            saveAndRender(data.fromId, 'them', data.message);
-        });
-
-        function saveAndRender(peerId, sender, text) {
-            const key = `chat_log_${peerId}`;
-            const history = JSON.parse(sessionStorage.getItem(key) || "[]");
-            history.push({ sender, text, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
-            sessionStorage.setItem(key, JSON.stringify(history));
-            
-            if (activePeerId == peerId) loadHistory();
-        }
-
-        function loadHistory() {
-            const key = `chat_log_${activePeerId}`;
-            const history = JSON.parse(sessionStorage.getItem(key) || "[]");
-            const container = document.getElementById('messages-container');
-            
-            container.innerHTML = history.map(m => `
-                <div class="flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}">
-                    <div class="max-w-[70%] ${m.sender === 'me' ? 'bg-emerald-600' : 'bg-zinc-800'} p-3 rounded-2xl shadow-sm">
-                        <p class="text-sm">${m.text}</p>
-                        <span class="text-[9px] opacity-40 mt-1 block">${m.time}</span>
+            // 3. Search Logic (Global Discovery)
+            async function searchUsers() {
+                const q = document.getElementById('search-bar').value;
+                if (!q) return loadFriends(); // Revert to friend list if search is empty
+                
+                const res = await fetch(`/api/users/search?q=${q}&currentId=${myId}`);
+                const users = await res.json();
+                
+                const area = document.getElementById('results-area');
+                area.innerHTML = '<h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 px-3">Global Search</h3>';
+                area.innerHTML += users.map(u => `
+                    <div class="flex justify-between items-center p-3 hover:bg-zinc-800 rounded-lg transition-colors group">
+                        <span class="text-sm font-medium">${u.username}</span>
+                        <button onclick="sendRequest(${u.id}, '${u.username}')" class="text-emerald-500 opacity-0 group-hover:opacity-100 text-xs font-bold">INVITE</button>
                     </div>
-                </div>
-            `).join('');
-            container.scrollTop = container.scrollHeight;
-        }
+                `).join('');
+            }
 
-        function logout() {
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = '/';
-        }
+            // 4. Request & Acceptance
+            function sendRequest(toId, toName) {
+                socket.emit('send_request', { fromId: myId, toId, fromName: myName });
+                alert(`Request sent to ${toName}`);
+            }
+
+            socket.on('new_request', (data) => {
+                const div = document.createElement('div');
+                div.id = `req-${data.fromId}`;
+                div.className = "p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-sm flex justify-between items-center animate-pulse";
+                div.innerHTML = `<span>${data.fromName}</span><button onclick="acceptChat(${data.fromId}, '${data.fromName}')" class="text-emerald-400 font-bold">ACCEPT</button>`;
+                document.getElementById('request-area').appendChild(div);
+            });
+
+            function acceptChat(id, name) {
+                // Tell server to save friendship in MariaDB
+                socket.emit('accept_chat', { myId, myName, peerId: id });
+                
+                // UI Cleanup
+                const reqEl = document.getElementById(`req-${id}`);
+                if (reqEl) reqEl.remove();
+                
+                selectPeer(id, name);
+                setTimeout(loadFriends, 500); // Refresh sidebar to show new permanent friend
+            }
+
+            socket.on('request_accepted', (data) => {
+                loadFriends(); // Refresh list when someone accepts your invite
+            });
+
+            // 5. Chat Session Management
+            function selectPeer(id, name) {
+                activePeerId = id;
+                document.getElementById('active-user-name').innerText = `Direct Tunnel: ${name}`;
+                loadHistory(); // Tries to pull from SessionStorage
+            }
+
+            function sendMessage() {
+                const text = document.getElementById('msg-input').value;
+                if (!activePeerId || !text) return;
+
+                socket.emit('private_message', { toId: activePeerId, fromId: myId, message: text });
+                saveAndRender(activePeerId, 'me', text);
+                document.getElementById('msg-input').value = '';
+            }
+
+            socket.on('receive_message', (data) => {
+                saveAndRender(data.fromId, 'them', data.message);
+            });
+
+            function saveAndRender(peerId, sender, text) {
+                const key = `chat_log_${peerId}`;
+                const history = JSON.parse(sessionStorage.getItem(key) || "[]");
+                history.push({ sender, text, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+                sessionStorage.setItem(key, JSON.stringify(history));
+                
+                if (activePeerId == peerId) loadHistory();
+            }
+
+            function loadHistory() {
+                const key = `chat_log_${activePeerId}`;
+                const history = JSON.parse(sessionStorage.getItem(key) || "[]");
+                const container = document.getElementById('messages-container');
+                
+                if (history.length === 0) {
+                    container.innerHTML = '<div class="text-center text-zinc-600 text-xs mt-20 italic">No messages in this session. History is cleared on tab close.</div>';
+                    return;
+                }
+
+                container.innerHTML = history.map(m => `
+                    <div class="flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}">
+                        <div class="max-w-[70%] ${m.sender === 'me' ? 'bg-emerald-600' : 'bg-zinc-800'} p-3 rounded-2xl shadow-sm border border-white/5">
+                            <p class="text-sm">${m.text}</p>
+                            <span class="text-[9px] opacity-40 mt-1 block text-right">${m.time}</span>
+                        </div>
+                    </div>
+                `).join('');
+                container.scrollTop = container.scrollHeight;
+            }
+
+            function logout() {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/';
+            }
     </script>
 </body>
 </html>
