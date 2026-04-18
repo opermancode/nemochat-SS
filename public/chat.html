@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NemoChat | Secure Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 h-screen flex overflow-hidden">
+
+    <div class="w-80 border-r border-zinc-800 bg-zinc-900/50 flex flex-col">
+        <div class="p-6">
+            <h1 class="text-xl font-bold text-emerald-500 mb-4">NemoChat</h1>
+            <input id="search-bar" oninput="searchUsers()" placeholder="Search global users..." 
+                   class="w-full bg-zinc-800 border border-zinc-700 p-2.5 rounded-lg text-sm focus:border-emerald-500 outline-none">
+        </div>
+
+        <div id="results-area" class="flex-1 overflow-y-auto px-4 space-y-2">
+            </div>
+
+        <div class="p-4 border-t border-zinc-800">
+            <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Pending Invitations</h3>
+            <div id="request-area" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col bg-zinc-950">
+        <div id="chat-header" class="p-4 border-b border-zinc-800 flex items-center justify-between">
+            <span id="active-user-name" class="font-semibold text-zinc-400">Select a user to start chatting</span>
+            <button onclick="logout()" class="text-xs text-zinc-600 hover:text-red-400">Logout</button>
+        </div>
+
+        <div id="messages-container" class="flex-1 p-6 overflow-y-auto space-y-4">
+            </div>
+
+        <div class="p-4 bg-zinc-900/50 border-t border-zinc-800">
+            <div class="flex gap-4 max-w-4xl mx-auto">
+                <input id="msg-input" placeholder="Message is encrypted in transit..." 
+                       class="flex-1 bg-zinc-800 border border-zinc-700 p-3 rounded-xl outline-none focus:border-emerald-500">
+                <button onclick="sendMessage()" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-xl font-bold transition-all">
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const myId = localStorage.getItem('userId');
+        const myName = localStorage.getItem('username');
+        let activePeerId = null;
+
+        if (!myId) window.location.href = '/';
+
+        // 1. Identify to Socket Server
+        socket.emit('register_online', myId);
+
+        // 2. Search Logic (MariaDB)
+        async function searchUsers() {
+            const q = document.getElementById('search-bar').value;
+            if (!q) { document.getElementById('results-area').innerHTML = ''; return; }
+            
+            const res = await fetch(`/api/users/search?q=${q}&currentId=${myId}`);
+            const users = await res.json();
+            
+            document.getElementById('results-area').innerHTML = users.map(u => `
+                <div class="flex justify-between items-center p-3 hover:bg-zinc-800 rounded-lg transition-colors group">
+                    <span class="text-sm font-medium">${u.username}</span>
+                    <button onclick="sendRequest(${u.id}, '${u.username}')" class="text-emerald-500 opacity-0 group-hover:opacity-100 text-xs font-bold">INVITE</button>
+                </div>
+            `).join('');
+        }
+
+        // 3. Request Logic (Relay via Socket)
+        function sendRequest(toId, toName) {
+            socket.emit('send_request', { fromId: myId, toId, fromName: myName });
+            alert(`Request sent to ${toName}`);
+        }
+
+        socket.on('new_request', (data) => {
+            const div = document.createElement('div');
+            div.className = "p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-sm flex justify-between items-center";
+            div.innerHTML = `<span>${data.fromName}</span><button onclick="acceptChat(${data.fromId}, '${data.fromName}')" class="text-emerald-400 font-bold">ACCEPT</button>`;
+            document.getElementById('request-area').appendChild(div);
+        });
+
+        function acceptChat(id, name) {
+            activePeerId = id;
+            document.getElementById('active-user-name').innerText = `Chatting with ${name}`;
+            document.getElementById('request-area').innerHTML = ''; 
+            loadHistory();
+        }
+
+        // 4. Chat & Storage Logic (Browser SessionStorage Only)
+        function sendMessage() {
+            const text = document.getElementById('msg-input').value;
+            if (!activePeerId || !text) return;
+
+            socket.emit('private_message', { toId: activePeerId, fromId: myId, message: text });
+            saveAndRender(activePeerId, 'me', text);
+            document.getElementById('msg-input').value = '';
+        }
+
+        socket.on('receive_message', (data) => {
+            saveAndRender(data.fromId, 'them', data.message);
+        });
+
+        function saveAndRender(peerId, sender, text) {
+            const key = `chat_log_${peerId}`;
+            const history = JSON.parse(sessionStorage.getItem(key) || "[]");
+            history.push({ sender, text, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+            sessionStorage.setItem(key, JSON.stringify(history));
+            
+            if (activePeerId == peerId) loadHistory();
+        }
+
+        function loadHistory() {
+            const key = `chat_log_${activePeerId}`;
+            const history = JSON.parse(sessionStorage.getItem(key) || "[]");
+            const container = document.getElementById('messages-container');
+            
+            container.innerHTML = history.map(m => `
+                <div class="flex ${m.sender === 'me' ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[70%] ${m.sender === 'me' ? 'bg-emerald-600' : 'bg-zinc-800'} p-3 rounded-2xl shadow-sm">
+                        <p class="text-sm">${m.text}</p>
+                        <span class="text-[9px] opacity-40 mt-1 block">${m.time}</span>
+                    </div>
+                </div>
+            `).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function logout() {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

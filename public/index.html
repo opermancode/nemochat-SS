@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NemoChat | Secure Ephemeral Messaging</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 overflow-hidden">
+
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 blur-[120px] rounded-full"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 blur-[120px] rounded-full"></div>
+    </div>
+
+    <div class="min-h-screen flex flex-col md:flex-row items-center justify-between px-8 md:px-24">
+        
+        <div class="md:w-1/2 space-y-6 py-12">
+            <div class="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest uppercase">
+                Now Live on Metal
+            </div>
+            <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight">
+                Nemo<span class="text-emerald-500">Chat.</span>
+            </h1>
+            <p class="text-xl text-zinc-400 max-w-lg leading-relaxed">
+                A high-performance, ephemeral messaging platform. No logs, no trace, just real-time encrypted communication that vanishes when you close your tab.
+            </p>
+            <div class="flex gap-4 pt-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-sm text-zinc-500">MariaDB Persistence</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                    <span class="text-sm text-zinc-500">Socket.io Real-time</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="md:w-[400px] w-full">
+            <div class="glass p-8 rounded-2xl border border-zinc-800 shadow-2xl">
+                <div id="auth-header" class="mb-8">
+                    <h2 id="auth-title" class="text-2xl font-bold">Welcome back</h2>
+                    <p id="auth-subtitle" class="text-zinc-500 text-sm">Enter your credentials to access NemoChat</p>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 uppercase mb-1 ml-1">Username</label>
+                        <input id="username" type="text" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 uppercase mb-1 ml-1">Password</label>
+                        <input id="password" type="password" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                    </div>
+                    
+                    <button onclick="submitAuth()" id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-4">
+                        Login to Account
+                    </button>
+
+                    <div class="text-center pt-4">
+                        <button onclick="toggleAuth()" id="toggle-link" class="text-zinc-500 hover:text-emerald-400 text-sm transition-colors">
+                            Don't have an account? <span class="font-bold">Register</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <p class="text-center text-zinc-600 text-[10px] mt-6 uppercase tracking-widest">
+                Protected by End-to-End Relay Encryption
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let isLogin = true;
+
+        function toggleAuth() {
+            isLogin = !isLogin;
+            document.getElementById('auth-title').innerText = isLogin ? 'Welcome back' : 'Create Account';
+            document.getElementById('auth-subtitle').innerText = isLogin ? 'Enter your credentials to access NemoChat' : 'Join the secure ephemeral network';
+            document.getElementById('submit-btn').innerText = isLogin ? 'Login to Account' : 'Register Account';
+            document.getElementById('toggle-link').innerHTML = isLogin ? 
+                'Don\'t have an account? <span class="font-bold text-emerald-500">Register</span>' : 
+                'Already have an account? <span class="font-bold text-emerald-500">Login</span>';
+        }
+
+        async function submitAuth() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const endpoint = isLogin ? '/api/login' : '/api/register';
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    if (isLogin) {
+                        localStorage.setItem('userId', data.userId);
+                        localStorage.setItem('username', data.username);
+                        window.location.href = '/chat.html';
+                    } else {
+                        alert('Registration successful! Please login.');
+                        toggleAuth();
+                    }
+                } else {
+                    alert(data.error || 'Authentication failed');
+                }
+            } catch (err) {
+                alert('Connection error. Is the server running?');
+            }
+        }
+    </script>
+</body>
+</html>
