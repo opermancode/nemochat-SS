@@ -10,6 +10,8 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); }
+        /* Smooth transition for registration fields */
+        #reg-extras { transition: all 0.3s ease-in-out; }
     </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 overflow-hidden">
@@ -43,21 +45,38 @@
             </div>
         </div>
 
-        <div class="md:w-[400px] w-full">
+        <div class="md:w-[400px] w-full flex flex-col">
             <div class="glass p-8 rounded-2xl border border-zinc-800 shadow-2xl">
-                <div id="auth-header" class="mb-8">
+                <div id="auth-header" class="mb-6">
                     <h2 id="auth-title" class="text-2xl font-bold">Welcome back</h2>
                     <p id="auth-subtitle" class="text-zinc-500 text-sm">Enter your credentials to access NemoChat</p>
                 </div>
 
-                <div class="space-y-4">
+                <div class="space-y-3">
                     <div>
-                        <label class="block text-xs font-semibold text-zinc-500 uppercase mb-1 ml-1">Username</label>
+                        <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Username</label>
                         <input id="username" type="text" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
                     </div>
+
+                    <div id="reg-extras" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Email Address</label>
+                            <input id="email" type="email" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Phone Number (Optional)</label>
+                            <input id="phone" type="text" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="block text-xs font-semibold text-zinc-500 uppercase mb-1 ml-1">Password</label>
+                        <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Password</label>
                         <input id="password" type="password" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
+                    </div>
+
+                    <div id="confirm-pass-box" class="hidden">
+                        <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Confirm Password</label>
+                        <input id="confirmPassword" type="password" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
                     </div>
                     
                     <button onclick="submitAuth()" id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-4">
@@ -66,14 +85,20 @@
 
                     <div class="text-center pt-4">
                         <button onclick="toggleAuth()" id="toggle-link" class="text-zinc-500 hover:text-emerald-400 text-sm transition-colors">
-                            Don't have an account? <span class="font-bold">Register</span>
+                            Don't have an account? <span class="font-bold text-emerald-500">Register</span>
                         </button>
                     </div>
                 </div>
             </div>
-            <p class="text-center text-zinc-600 text-[10px] mt-6 uppercase tracking-widest">
-                Protected by End-to-End Relay Encryption
-            </p>
+            
+            <footer class="mt-8 text-center">
+                <p class="text-zinc-600 text-[10px] uppercase tracking-[0.2em]">
+                    Protected by End-to-End Relay Encryption
+                </p>
+                <p class="text-emerald-500/50 text-[11px] font-semibold mt-2 tracking-wide">
+                    A project by Sanika Hadke
+                </p>
+            </footer>
         </div>
     </div>
 
@@ -82,6 +107,14 @@
 
         function toggleAuth() {
             isLogin = !isLogin;
+            const extras = document.getElementById('reg-extras');
+            const confirmBox = document.getElementById('confirm-pass-box');
+            
+            // Toggle visibility
+            extras.classList.toggle('hidden', isLogin);
+            confirmBox.classList.toggle('hidden', isLogin);
+
+            // Update Text
             document.getElementById('auth-title').innerText = isLogin ? 'Welcome back' : 'Create Account';
             document.getElementById('auth-subtitle').innerText = isLogin ? 'Enter your credentials to access NemoChat' : 'Join the secure ephemeral network';
             document.getElementById('submit-btn').innerText = isLogin ? 'Login to Account' : 'Register Account';
@@ -95,11 +128,19 @@
             const password = document.getElementById('password').value;
             const endpoint = isLogin ? '/api/login' : '/api/register';
 
+            // Build Payload
+            const payload = { username, password };
+            if (!isLogin) {
+                payload.email = document.getElementById('email').value;
+                payload.phone = document.getElementById('phone').value;
+                payload.confirmPassword = document.getElementById('confirmPassword').value;
+            }
+
             try {
                 const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
 
