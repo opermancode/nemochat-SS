@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const path = require('path');
+require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
@@ -12,14 +13,14 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- User Management (MariaDB) ---
+// --- User Auth & Global Search (MariaDB) ---
 app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
     try {
         const hash = await bcrypt.hash(password, 10);
         await db.execute("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash]);
         res.json({ success: true });
-    } catch (err) { res.status(400).json({ error: "User already exists" }); }
+    } catch (err) { res.status(400).json({ error: "Username taken" }); }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -36,11 +37,13 @@ app.get('/api/users/search', async (req, res) => {
     res.json(rows);
 });
 
-// --- Socket Relay (No DB storage for messages) ---
+// --- Socket Relay (Ephemeral) ---
 const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
-    socket.on('register_online', (userId) => onlineUsers.set(userId.toString(), socket.id));
+    socket.on('register_online', (userId) => {
+        onlineUsers.set(userId.toString(), socket.id);
+    });
 
     socket.on('send_request', (data) => {
         const target = onlineUsers.get(data.toId.toString());
@@ -59,4 +62,5 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(3000, () => console.log('NemoChat Metal live on port 3000'));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`NemoChat running on port ${PORT}`));
