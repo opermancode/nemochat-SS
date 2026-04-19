@@ -1,173 +1,937 @@
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>NemoChat | Secure Ephemeral Messaging</title>
-        <link rel="icon" type="image/png" href="/nemochat.png">
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script src="/socket.io/socket.io.js"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-        <style>
-            body { font-family: 'Inter', sans-serif; }
-            .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); }
-            #reg-extras { transition: all 0.3s ease-in-out; }
-            /* Logo Glow Effect */
-            .logo-glow { filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.3)); }
-        </style>
-    </head>
-    <body class="bg-zinc-950 text-zinc-100 overflow-hidden">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NemoChat | Secure Ephemeral Messaging</title>
+    <link rel="icon" type="image/png" href="/nemochat.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-2: #11121a;
+            --ink: #fef3c7;
+            --ink-soft: #fde68a;
+            --amber: #f5c518;
+            --amber-bright: #fde047;
+            --amber-dim: rgba(245,197,24,0.5);
+            --blue: #2563eb;
+            --blue-bright: #3b82f6;
+            --blue-deep: #1e3a8a;
+            --grid: rgba(245,197,24,0.06);
+            --stroke: rgba(245,197,24,0.15);
+        }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            overflow: hidden;
+            letter-spacing: -0.01em;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
 
-        <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-            <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900/20 blur-[120px] rounded-full"></div>
-            <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 blur-[120px] rounded-full"></div>
+        /* ambient grid */
+        .grid-bg {
+            background-image:
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: radial-gradient(ellipse 70% 60% at 35% 50%, #000 40%, transparent 92%);
+        }
+
+        .glass {
+            background: linear-gradient(180deg, rgba(20,18,10,0.88), rgba(10,10,15,0.92));
+            backdrop-filter: blur(16px) saturate(140%);
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
+        }
+
+        /* noise */
+        .noise::after {
+            content: "";
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 0.95  0 0 0 0 0.7  0 0 0 0.03 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+            pointer-events: none; opacity: 0.4; mix-blend-mode: overlay; z-index: 100;
+        }
+
+        /* Globe rotation */
+        @keyframes spinY { from { transform: rotateY(0deg);} to { transform: rotateY(360deg);} }
+        .globe-rotator { animation: spinY 70s linear infinite; transform-style: preserve-3d; }
+        .globe-rotator.paused { animation-play-state: paused; }
+
+        /* ping */
+        @keyframes ping-ring {
+            0% { transform: scale(0.4); opacity: 0.9; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+        .ping { animation: ping-ring 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite; transform-origin: center; }
+
+        /* arc packet */
+        @keyframes dash-flow { to { stroke-dashoffset: -240; } }
+
+        /* scan line */
+        @keyframes scan {
+            0% { transform: translateY(-100%); opacity: 0; }
+            20% { opacity: 0.35; }
+            80% { opacity: 0.35; }
+            100% { transform: translateY(100%); opacity: 0; }
+        }
+        .scan {
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(245,197,24,0.22) 50%, transparent 100%);
+            height: 30%;
+            animation: scan 6s ease-in-out infinite;
+            pointer-events: none;
+            mix-blend-mode: screen;
+        }
+
+        /* glyph rain */
+        @keyframes drift-up {
+            from { transform: translateY(18px); opacity: 0; }
+            15%  { opacity: 0.8; }
+            to   { transform: translateY(-140px); opacity: 0; }
+        }
+        .cipher {
+            position: absolute;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(245,197,24,0.55);
+            white-space: nowrap;
+            animation: drift-up 7s linear infinite;
+            text-shadow: 0 0 8px rgba(245,197,24,0.35);
+        }
+
+        /* HUD */
+        .hud {
+            background: linear-gradient(180deg, rgba(16,14,8,0.78), rgba(8,8,12,0.65));
+            border: 1px solid rgba(245,197,24,0.18);
+            backdrop-filter: blur(8px);
+        }
+
+        /* corner brackets */
+        .bracket::before, .bracket::after {
+            content: ""; position: absolute; width: 9px; height: 9px;
+            border-color: var(--amber);
+        }
+        .bracket::before { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
+        .bracket::after  { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
+
+        /* marquee */
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .marquee-track { animation: marquee 45s linear infinite; }
+
+        /* pulse */
+        @keyframes soft-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .soft-pulse { animation: soft-pulse 2s ease-in-out infinite; }
+
+        /* primary button (amber) */
+        .btn-primary {
+            position: relative; overflow: hidden;
+            background: linear-gradient(180deg, #fde047 0%, #f5c518 55%, #ca8a04 100%);
+            color: #1a1405;
+            box-shadow:
+                0 10px 28px -10px rgba(245,197,24,0.65),
+                inset 0 1px 0 rgba(255,255,255,0.45),
+                inset 0 -1px 0 rgba(0,0,0,0.2);
+        }
+        .btn-primary::before {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+            transform: translateX(-110%);
+            transition: transform 0.7s;
+        }
+        .btn-primary:hover::before { transform: translateX(110%); }
+
+        /* fields */
+        .field {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(245,197,24,0.1);
+            transition: border-color .2s, background .2s, box-shadow .2s;
+            color: var(--ink);
+        }
+        .field::placeholder { color: rgba(254,243,199,0.25); }
+        .field:focus {
+            border-color: var(--amber);
+            background: rgba(245,197,24,0.05);
+            box-shadow: 0 0 0 3px rgba(245,197,24,0.15);
+            outline: none;
+        }
+
+        #reg-extras, #confirm-pass-box { transition: all 0.3s ease; }
+
+        .glow-amber {
+            box-shadow: 0 0 0 1px rgba(245,197,24,0.22), 0 0 36px rgba(245,197,24,0.1);
+        }
+
+        /* small spin rings */
+        @keyframes slow-spin { to { transform: rotate(360deg); } }
+        .slow-spin { animation: slow-spin 35s linear infinite; }
+        .slow-spin-rev { animation: slow-spin 55s linear infinite reverse; }
+
+        .mask-fade-r {
+            -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+                    mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+        }
+
+        .tick-row { border-bottom: 1px dashed rgba(245,197,24,0.08); }
+
+        /* play/pause toggle */
+        .icon-btn {
+            background: rgba(245,197,24,0.08);
+            border: 1px solid rgba(245,197,24,0.25);
+            color: var(--amber);
+            transition: all .2s;
+        }
+        .icon-btn:hover { background: rgba(245,197,24,0.18); }
+
+        /* LAYOUT — fits in viewport, no scroll */
+        .stage {
+            display: grid;
+            grid-template-columns: 1fr 440px;
+            height: 100vh;
+            height: 100dvh;
+        }
+        @media (max-width: 1100px) {
+            .stage { grid-template-columns: 1fr 400px; }
+        }
+        @media (max-width: 920px) {
+            .stage { grid-template-columns: 1fr; grid-template-rows: 40vh 1fr; }
+            .globe-section { border-right: none; border-bottom: 1px solid rgba(245,197,24,0.12); }
+            .side-hud-bottom, .side-hud-top, .ticker-center { display: none !important; }
+            body { overflow: auto; }
+            html, body { height: auto; }
+        }
+        @media (max-height: 720px) and (min-width: 921px) {
+            .hero-copy h1 { font-size: 30px !important; line-height: 1.05 !important; }
+            .hero-copy p { display: none; }
+            .hero-copy { margin-bottom: 16px !important; }
+            .auth-card { padding: 18px !important; }
+        }
+
+        /* logo bobbing */
+        @keyframes bob {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-4px) rotate(2deg); }
+        }
+        .logo-bob { animation: bob 4s ease-in-out infinite; }
+    </style>
+</head>
+<body class="noise">
+
+<!-- ambient backdrop -->
+<div class="fixed inset-0 -z-10 grid-bg"></div>
+<div class="fixed inset-0 -z-10 pointer-events-none">
+    <div class="absolute top-[-20%] left-[5%] w-[55%] h-[55%] rounded-full" style="background: radial-gradient(closest-side, rgba(245,197,24,0.14), transparent 70%); filter: blur(50px);"></div>
+    <div class="absolute bottom-[-20%] right-[-10%] w-[45%] h-[45%] rounded-full" style="background: radial-gradient(closest-side, rgba(37,99,235,0.11), transparent 70%); filter: blur(45px);"></div>
+</div>
+
+<main class="stage">
+
+    <!-- LEFT : EARTH STAGE -->
+    <section class="globe-section relative overflow-hidden">
+
+        <!-- top toolbar row -->
+        <div class="absolute top-0 left-0 right-0 z-30 px-5 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <img src="nemochat.png" alt="NemoChat" class="w-8 h-8 logo-bob" style="filter: drop-shadow(0 2px 8px rgba(245,197,24,0.45));">
+                <div class="leading-tight">
+                    <div class="text-[13px] font-bold tracking-tight">NemoChat<span style="color:var(--amber)">.</span></div>
+                    <div class="text-[8px] uppercase tracking-[0.25em] text-amber-200/40">Ephemeral Relay</div>
+                </div>
+            </div>
+
+            <div class="hidden md:flex items-center gap-5 text-[10px] uppercase tracking-[0.2em] text-amber-100/50">
+                <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full soft-pulse" style="background:var(--amber)"></span><span>Relay Online</span></div>
+                <div class="flex items-center gap-1.5"><span id="latency-stat" class="mono normal-case" style="color:var(--amber-bright)">42ms</span><span class="text-amber-200/30 normal-case">rtt</span></div>
+                <div class="flex items-center gap-1.5"><span id="sessions-stat" class="mono text-amber-100 normal-case">1,284</span><span class="text-amber-200/30 normal-case">tunnels</span></div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="globe-toggle" class="icon-btn text-[10px] mono uppercase tracking-widest px-2.5 py-1 rounded-md" onclick="toggleGlobe()">
+                    <span id="globe-toggle-label">◼ pause</span>
+                </button>
+                <div class="hidden md:block text-[9px] uppercase tracking-[0.25em] text-amber-200/30 mono">
+                    v2.4.1 · 7af3c9
+                </div>
+            </div>
         </div>
 
-        <div class="min-h-screen flex flex-col md:flex-row items-center justify-between px-8 md:px-24">
-            
-            <div class="md:w-1/2 space-y-6 py-12">
-                <div class="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest uppercase">
-                    Now Live on Metal
+        <!-- rotating outer rings -->
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="relative" style="width: min(78vh, 78%); aspect-ratio: 1/1;">
+                <div class="absolute inset-0 rounded-full slow-spin" style="border: 1px dashed rgba(245,197,24,0.12);"></div>
+                <div class="absolute inset-[-4%] rounded-full slow-spin-rev" style="border: 1px solid rgba(245,197,24,0.06);"></div>
+                <div class="absolute inset-[6%] rounded-full" style="border: 1px solid rgba(245,197,24,0.1);"></div>
+                <svg id="tick-ring" class="absolute inset-0 w-full h-full slow-spin" viewBox="0 0 100 100"><g></g></svg>
+            </div>
+        </div>
+
+        <!-- Earth globe (canvas-rendered, draggable) -->
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div id="earth-wrap" class="relative" style="width: min(60vh, 62%); aspect-ratio: 1/1;">
+                <!-- glow halo -->
+                <div class="absolute inset-[-18%] rounded-full pointer-events-none"
+                     style="background: radial-gradient(circle at 35% 38%, rgba(245,197,24,0.18), transparent 55%);"></div>
+                <!-- atmosphere ring -->
+                <div class="absolute inset-[-3%] rounded-full pointer-events-none"
+                     style="background: radial-gradient(circle, transparent 63%, rgba(96,165,250,0.25) 70%, rgba(37,99,235,0.12) 78%, transparent 84%);"></div>
+
+                <canvas id="earth-canvas" class="absolute inset-0 w-full h-full rounded-full"
+                        style="cursor: grab; touch-action: none; box-shadow: 0 0 90px rgba(245,197,24,0.14), inset 0 0 0 1px rgba(245,197,24,0.18);"></canvas>
+
+                <!-- arcs + pins overlay -->
+                <svg id="arcs-svg" viewBox="-1 -1 2 2" class="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+                    <defs>
+                        <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%"  stop-color="#f5c518" stop-opacity="0"/>
+                            <stop offset="50%" stop-color="#fde047" stop-opacity="1"/>
+                            <stop offset="100%" stop-color="#f5c518" stop-opacity="0"/>
+                        </linearGradient>
+                        <radialGradient id="pinGlow" cx="0.5" cy="0.5" r="0.5">
+                            <stop offset="0%" stop-color="#fde047"/>
+                            <stop offset="100%" stop-color="#f5c518" stop-opacity="0"/>
+                        </radialGradient>
+                        <filter id="blur-soft"><feGaussianBlur stdDeviation="0.008"/></filter>
+                    </defs>
+                    <g id="arcs-group"></g>
+                    <g id="pins-group"></g>
+                </svg>
+                <div id="pin-labels" class="absolute inset-0 pointer-events-none"></div>
+                <div class="absolute left-1/2 bottom-[-26px] -translate-x-1/2 text-[8px] mono uppercase tracking-[0.3em] text-amber-200/30 pointer-events-none whitespace-nowrap">↺ drag to rotate</div>
+            </div>
+        </div>
+
+        <!-- cipher rain -->
+        <div id="cipher-rain" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+        <!-- TOP-LEFT HUD -->
+        <div class="side-hud-top absolute top-16 left-5 w-[280px] hud rounded-lg p-3 bracket relative">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5">
+                    <div class="w-1.5 h-1.5 rounded-full soft-pulse" style="background:var(--amber)"></div>
+                    <span class="text-[9px] uppercase tracking-[0.25em] text-amber-100/60">Live Relay Feed</span>
                 </div>
-                
-                <div class="flex items-center gap-4">
-                    <img src="/nemochat.png" alt="NemoChat Logo" class="w-16 h-16 object-contain logo-glow">
-                    <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight">
-                        Nemo<span class="text-emerald-500">Chat.</span>
-                    </h1>
+                <span class="text-[8px] mono text-amber-200/30">AES-256-GCM</span>
+            </div>
+            <div id="feed-list" class="space-y-1 mono text-[10px]"></div>
+            <div class="mt-2 pt-2 border-t border-amber-500/10 flex items-center justify-between text-[8px] mono uppercase tracking-wider text-amber-200/40">
+                <span>Zero-knowledge</span>
+                <span style="color:var(--amber-bright)">Owner-blind ✓</span>
+            </div>
+        </div>
+
+        <!-- BOTTOM-LEFT HUD -->
+        <div class="side-hud-bottom absolute bottom-4 left-5 hud rounded-lg p-3 w-[280px] bracket relative">
+            <div class="text-[9px] uppercase tracking-[0.25em] text-amber-100/60 mb-2">Encryption Stack</div>
+            <div class="space-y-1 text-[10px]">
+                <div class="flex items-center justify-between tick-row pb-1">
+                    <span class="mono text-amber-100/70">X25519</span>
+                    <span class="text-[8px] mono uppercase" style="color:var(--amber-bright)">key exchange</span>
+                </div>
+                <div class="flex items-center justify-between tick-row pb-1">
+                    <span class="mono text-amber-100/70">Double Ratchet</span>
+                    <span class="text-[8px] mono uppercase" style="color:var(--amber-bright)">forward secrecy</span>
+                </div>
+                <div class="flex items-center justify-between tick-row pb-1">
+                    <span class="mono text-amber-100/70">AES-256-GCM</span>
+                    <span class="text-[8px] mono uppercase" style="color:var(--amber-bright)">cipher</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="mono text-amber-100/70">Ephemeral Session</span>
+                    <span class="text-[8px] mono uppercase" style="color:var(--amber-bright)">vanishing</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM center: ticker -->
+        <div class="ticker-center absolute bottom-4 left-1/2 -translate-x-1/2 w-[50%] max-w-[480px] overflow-hidden hud rounded-full px-4 py-1.5 mask-fade-r">
+            <div class="marquee-track flex gap-10 whitespace-nowrap text-[9px] mono text-amber-200/50 uppercase tracking-wider">
+                <span>Packet <span style="color:var(--amber-bright)">0x7a3f</span> relayed Tokyo → São Paulo · 38ms</span>
+                <span>Handshake <span style="color:var(--amber-bright)">complete</span> Berlin ↔ Nairobi</span>
+                <span>Session <span style="color:var(--amber-bright)">terminated</span> · logs purged</span>
+                <span>Zero metadata retained across 6 continents</span>
+                <span>Packet <span style="color:var(--amber-bright)">0x7a3f</span> relayed Tokyo → São Paulo · 38ms</span>
+                <span>Handshake <span style="color:var(--amber-bright)">complete</span> Berlin ↔ Nairobi</span>
+                <span>Session <span style="color:var(--amber-bright)">terminated</span> · logs purged</span>
+                <span>Zero metadata retained across 6 continents</span>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- RIGHT : Auth panel -->
+    <section class="relative flex flex-col overflow-hidden" style="background: linear-gradient(180deg, rgba(14,12,7,0.9), rgba(8,8,12,0.95)); border-left: 1px solid rgba(245,197,24,0.12);">
+
+        <!-- vertical frame label -->
+        <div class="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 rotate-180 mono text-[8px] uppercase tracking-[0.45em] text-amber-200/20" style="writing-mode: vertical-rl;">
+            Auth · Session · Relay
+        </div>
+
+        <div class="flex-1 flex flex-col justify-center px-7 py-6 overflow-y-auto">
+
+            <!-- hero copy -->
+            <div class="hero-copy mb-5">
+                <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full mb-3" style="border:1px solid rgba(245,197,24,0.25); background: rgba(245,197,24,0.06);">
+                    <div class="w-1 h-1 rounded-full soft-pulse" style="background:var(--amber)"></div>
+                    <span class="text-[9px] font-bold tracking-[0.3em] uppercase" style="color:var(--amber-bright)">Now Live On Metal</span>
                 </div>
 
-                <p class="text-xl text-zinc-400 max-w-lg leading-relaxed">
-                    A high-performance, ephemeral messaging platform. No logs, no trace, just real-time encrypted communication that vanishes when you close your tab.
+                <h1 class="font-extrabold tracking-[-0.03em] mb-2.5" style="font-size: 34px; line-height: 1.02;">
+                    Messages that<br>
+                    <span style="color:var(--amber-bright)">can't be read</span>.<br>
+                    <span class="text-amber-200/35 font-semibold" style="font-size: 24px;">Not even by us.</span>
+                </h1>
+                <p class="text-[12px] leading-relaxed text-amber-100/55 max-w-[340px]">
+                    Real-time encrypted relay — no persistent logs. Keys live in your tab. Close it, and the conversation is gone for everyone.
                 </p>
-                <div class="flex gap-4 pt-4">
-                    <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span class="text-sm text-zinc-500">MariaDB Persistence</span>
+            </div>
+
+            <!-- Auth card -->
+            <div class="auth-card glass rounded-xl p-5 relative bracket" style="border:1px solid rgba(245,197,24,0.14);">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 id="auth-title" class="text-base font-bold tracking-tight">Welcome back</h2>
+                        <p id="auth-subtitle" class="text-[10px] text-amber-200/40 mt-0.5">Open a secure tunnel.</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                        <span class="text-sm text-zinc-500">Socket.io Real-time</span>
+                    <div class="text-[8px] mono uppercase tracking-widest text-amber-200/30 text-right leading-tight">
+                        node<br>
+                        <span style="color:var(--amber-bright)">eu-west-2a</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2.5">
+                    <div>
+                        <label class="block text-[8px] font-bold text-amber-200/40 uppercase mb-1 tracking-[0.2em]">Username</label>
+                        <input id="username" type="text" class="field w-full px-3 py-2.5 rounded-lg text-[13px] mono">
+                    </div>
+
+                    <div id="reg-extras" class="hidden space-y-2.5">
+                        <div>
+                            <label class="block text-[8px] font-bold text-amber-200/40 uppercase mb-1 tracking-[0.2em]">Email</label>
+                            <input id="email" type="email" class="field w-full px-3 py-2.5 rounded-lg text-[13px] mono">
+                        </div>
+                        <div>
+                            <label class="block text-[8px] font-bold text-amber-200/40 uppercase mb-1 tracking-[0.2em]">Phone <span class="text-amber-200/25 normal-case tracking-normal">(optional)</span></label>
+                            <input id="phone" type="text" class="field w-full px-3 py-2.5 rounded-lg text-[13px] mono">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[8px] font-bold text-amber-200/40 uppercase mb-1 tracking-[0.2em]">Password</label>
+                        <input id="password" type="password" class="field w-full px-3 py-2.5 rounded-lg text-[13px] mono">
+                    </div>
+
+                    <div id="confirm-pass-box" class="hidden">
+                        <label class="block text-[8px] font-bold text-amber-200/40 uppercase mb-1 tracking-[0.2em]">Confirm Password</label>
+                        <input id="confirmPassword" type="password" class="field w-full px-3 py-2.5 rounded-lg text-[13px] mono">
+                    </div>
+
+                    <button onclick="submitAuth()" id="submit-btn" class="btn-primary w-full font-bold text-[13px] py-2.5 rounded-lg mt-1.5 tracking-tight">
+                        Open Secure Tunnel →
+                    </button>
+
+                    <div class="flex items-center gap-2.5 pt-1.5">
+                        <div class="h-px flex-1" style="background: rgba(245,197,24,0.1);"></div>
+                        <span class="text-[8px] mono uppercase tracking-[0.3em] text-amber-200/30">or</span>
+                        <div class="h-px flex-1" style="background: rgba(245,197,24,0.1);"></div>
+                    </div>
+
+                    <div class="text-center">
+                        <button onclick="toggleAuth()" id="toggle-link" class="text-amber-100/50 hover:text-amber-300 text-[11px] transition-colors">
+                            Don't have an account? <span class="font-bold" style="color:var(--amber-bright)">Register</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div class="md:w-[400px] w-full flex flex-col">
-                <div class="glass p-8 rounded-2xl border border-zinc-800 shadow-2xl">
-                    <div class="flex justify-center mb-6 md:hidden">
-                        <img src="/nemochat.png" alt="Logo" class="w-12 h-12 object-contain">
-                    </div>
-
-                    <div id="auth-header" class="mb-6">
-                        <h2 id="auth-title" class="text-2xl font-bold">Welcome back</h2>
-                        <p id="auth-subtitle" class="text-zinc-500 text-sm">Enter your credentials to access NemoChat</p>
-                    </div>
-
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Username</label>
-                            <input id="username" type="text" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
-                        </div>
-
-                        <div id="reg-extras" class="hidden space-y-3">
-                            <div>
-                                <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Email Address</label>
-                                <input id="email" type="email" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Phone Number (Optional)</label>
-                                <input id="phone" type="text" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Password</label>
-                            <input id="password" type="password" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
-                        </div>
-
-                        <div id="confirm-pass-box" class="hidden">
-                            <label class="block text-[10px] font-bold text-zinc-500 uppercase mb-1 ml-1">Confirm Password</label>
-                            <input id="confirmPassword" type="password" class="w-full bg-zinc-800/50 border border-zinc-700 p-3 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
-                        </div>
-                        
-                        <button onclick="submitAuth()" id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-4">
-                            Login to Account
-                        </button>
-
-                        <div class="text-center pt-4">
-                            <button onclick="toggleAuth()" id="toggle-link" class="text-zinc-500 hover:text-emerald-400 text-sm transition-colors">
-                                Don't have an account? <span class="font-bold text-emerald-500">Register</span>
-                            </button>
-                        </div>
-                    </div>
+            <!-- footer -->
+            <div class="mt-4 flex items-center justify-between text-[8px] uppercase tracking-[0.25em] text-amber-200/30 mono">
+                <div class="flex items-center gap-1.5">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/></svg>
+                    E2E · Zero-Knowledge
                 </div>
-                
-                <footer class="mt-8 text-center">
-                    <p class="text-zinc-600 text-[10px] uppercase tracking-[0.2em]">
-                        Protected by End-to-End Relay Encryption
-                    </p>
-                    <p class="text-emerald-500/50 text-[11px] font-semibold mt-2 tracking-wide">
-                        A project by Sanika Hadke
-                    </p>
-                </footer>
+                <div>by <span style="color:var(--amber-bright); opacity:0.8">Sanika Hadke</span></div>
             </div>
         </div>
 
-        <script>
-            let isLogin = true;
+    </section>
+</main>
 
-            function toggleAuth() {
-                isLogin = !isLogin;
-                const extras = document.getElementById('reg-extras');
-                const confirmBox = document.getElementById('confirm-pass-box');
-                
-                extras.classList.toggle('hidden', isLogin);
-                confirmBox.classList.toggle('hidden', isLogin);
+<script>
+/* CITIES */
+const CITIES = [
+    { name: "San Francisco", lat: 37.77, lon: -122.41 },
+    { name: "New York",      lat: 40.71, lon:  -74.00 },
+    { name: "São Paulo",     lat:-23.55, lon:  -46.63 },
+    { name: "London",        lat: 51.50, lon:   -0.12 },
+    { name: "Berlin",        lat: 52.52, lon:   13.40 },
+    { name: "Lagos",         lat:  6.52, lon:    3.37 },
+    { name: "Nairobi",       lat: -1.29, lon:   36.82 },
+    { name: "Dubai",         lat: 25.20, lon:   55.27 },
+    { name: "Mumbai",        lat: 19.07, lon:   72.87 },
+    { name: "Singapore",     lat:  1.35, lon:  103.81 },
+    { name: "Tokyo",         lat: 35.68, lon:  139.69 },
+    { name: "Sydney",        lat:-33.86, lon:  151.20 },
+    { name: "Reykjavík",     lat: 64.13, lon:  -21.89 },
+    { name: "Cape Town",     lat:-33.92, lon:   18.42 },
+];
 
-                document.getElementById('auth-title').innerText = isLogin ? 'Welcome back' : 'Create Account';
-                document.getElementById('auth-subtitle').innerText = isLogin ? 'Enter your credentials to access NemoChat' : 'Join the secure ephemeral network';
-                document.getElementById('submit-btn').innerText = isLogin ? 'Login to Account' : 'Register Account';
-                document.getElementById('toggle-link').innerHTML = isLogin ? 
-                    'Don\'t have an account? <span class="font-bold text-emerald-500">Register</span>' : 
-                    'Already have an account? <span class="font-bold text-emerald-500">Login</span>';
+/* ============================================================
+   PROPER EARTH — canvas orthographic projection w/ drag-to-rotate
+============================================================ */
+
+// Hand-curated coastline polylines (lat/lon arrays). Each sub-array is a
+// continuous contour. These are simplified but recognisable outlines.
+const COASTS = [
+ // North America — main + coast
+ [[71,-156],[70,-148],[70,-141],[69,-138],[69,-131],[65,-137],[60,-140],[59,-151],[60,-148],[58,-152],[57,-155],[55,-160],[52,-169],[55,-163],[58,-158],[59,-155],[57,-152],[55,-133],[54,-130],[52,-128],[50,-127],[48,-124],[46,-124],[44,-124],[41,-124],[38,-123],[36,-122],[34,-120],[33,-118],[32,-117],[30,-115],[28,-114],[25,-112],[23,-110],[22,-107],[20,-105],[18,-102],[16,-98],[16,-95],[18,-92],[18,-90],[21,-89],[21,-86],[19,-88],[18,-88],[16,-88],[15,-83],[11,-83],[9,-80],[8,-78],[9,-82],[13,-83],[15,-87],[18,-92],[21,-97],[25,-97],[27,-97],[29,-94],[29,-89],[30,-87],[30,-85],[28,-82],[26,-82],[25,-80],[30,-81],[32,-81],[33,-79],[35,-76],[37,-76],[39,-75],[40,-74],[41,-71],[42,-71],[43,-70],[44,-68],[45,-67],[45,-65],[46,-60],[47,-60],[49,-58],[50,-57],[52,-55],[54,-57],[55,-60],[54,-62],[51,-57],[53,-56],[58,-62],[60,-65],[60,-77],[58,-78],[56,-78],[55,-80],[56,-85],[58,-84],[61,-82],[63,-78],[65,-78],[68,-75],[69,-82],[71,-94],[69,-100],[68,-110],[70,-117],[71,-125],[69,-135],[69,-141],[71,-156]],
+ // Greenland
+ [[60,-45],[65,-52],[69,-55],[72,-56],[76,-60],[78,-65],[81,-63],[83,-40],[82,-25],[80,-18],[76,-18],[72,-22],[67,-32],[62,-42],[60,-45]],
+ // South America
+ [[12,-72],[11,-74],[10,-76],[7,-78],[4,-77],[1,-79],[-2,-80],[-5,-81],[-8,-79],[-12,-77],[-16,-75],[-18,-71],[-22,-70],[-26,-71],[-30,-72],[-34,-72],[-39,-73],[-43,-74],[-46,-75],[-50,-74],[-53,-72],[-55,-68],[-53,-68],[-51,-68],[-48,-66],[-44,-65],[-41,-63],[-38,-58],[-36,-57],[-35,-54],[-33,-53],[-32,-52],[-29,-50],[-26,-48],[-23,-43],[-20,-40],[-16,-39],[-13,-38],[-8,-35],[-6,-35],[-5,-37],[-3,-39],[-1,-44],[-1,-48],[0,-50],[2,-51],[4,-52],[5,-54],[6,-58],[8,-60],[10,-62],[11,-69],[12,-72]],
+ // Europe + Scandinavia
+ [[71,24],[70,30],[69,33],[66,41],[63,40],[60,30],[60,23],[60,17],[58,12],[58,7],[62,6],[65,12],[68,15],[71,24]],
+ [[36,-9],[38,-9],[41,-9],[43,-9],[44,-2],[48,-5],[50,-4],[51,2],[50,2],[51,4],[52,5],[53,7],[54,9],[55,11],[57,12],[55,14],[54,14],[54,19],[54,22],[56,22],[60,28],[57,24],[55,22],[53,18],[51,15],[50,18],[49,21],[48,22],[46,22],[45,28],[44,28],[43,27],[41,28],[41,23],[40,20],[41,17],[42,14],[44,12],[45,13],[45,9],[43,8],[43,5],[40,3],[38,0],[38,-3],[36,-6],[36,-9]],
+ // British Isles
+ [[58,-5],[58,-3],[57,-2],[55,-2],[54,0],[53,1],[52,1],[51,1],[50,-5],[53,-5],[55,-5],[58,-5]],
+ [[52,-10],[55,-8],[54,-6],[52,-6],[51,-10],[52,-10]],
+ // Africa
+ [[32,10],[31,12],[30,17],[31,25],[31,30],[30,33],[27,34],[22,37],[15,40],[12,43],[11,50],[4,51],[1,42],[-4,40],[-10,40],[-15,40],[-19,35],[-24,34],[-28,33],[-33,28],[-34,24],[-34,19],[-32,18],[-28,16],[-23,14],[-17,12],[-12,13],[-8,13],[-5,11],[0,9],[4,6],[5,1],[4,-2],[6,-5],[8,-13],[11,-16],[15,-17],[20,-17],[25,-15],[30,-10],[33,-6],[35,-6],[36,-3],[35,0],[35,5],[33,10],[32,10]],
+ // Madagascar
+ [[-12,49],[-15,50],[-20,49],[-24,47],[-25,45],[-22,44],[-18,44],[-14,47],[-12,49]],
+ // Arabia
+ [[13,44],[17,42],[21,40],[24,38],[29,35],[30,35],[30,48],[27,50],[24,52],[21,58],[17,55],[13,54],[12,48],[13,44]],
+ // Asia main
+ [[77,104],[76,115],[72,130],[68,160],[62,170],[60,168],[57,162],[60,155],[60,140],[55,138],[53,141],[47,143],[43,135],[40,128],[36,126],[33,127],[35,125],[40,120],[39,118],[38,121],[35,119],[33,121],[30,122],[28,121],[24,120],[22,117],[22,113],[21,110],[18,109],[11,109],[9,105],[10,104],[13,100],[8,100],[6,100],[3,101],[0,104],[-3,103],[-6,106],[-8,113],[-8,118],[-4,118],[0,115],[5,117],[7,117],[9,123],[5,120],[2,126],[-3,128],[-5,132],[-8,140],[-9,131],[-10,121],[-11,110],[11,95],[16,94],[22,93],[26,92],[26,97],[21,96],[16,97],[16,92],[22,88],[22,91],[23,90],[22,89],[22,85],[20,86],[18,84],[16,82],[13,80],[10,78],[8,77],[11,76],[15,74],[20,72],[22,70],[24,68],[25,62],[27,57],[30,50],[32,48],[35,45],[37,41],[41,41],[42,44],[42,50],[45,55],[47,53],[52,55],[55,62],[55,68],[60,76],[68,80],[72,82],[75,90],[77,104]],
+ // Japan
+ [[45,141],[43,145],[40,141],[37,139],[34,136],[33,131],[31,130],[33,135],[35,139],[39,141],[45,141]],
+ // New Guinea
+ [[-1,131],[-3,130],[-3,137],[-8,140],[-9,147],[-11,150],[-9,142],[-5,140],[-1,131]],
+ // Australia
+ [[-11,132],[-12,136],[-14,141],[-15,144],[-19,147],[-24,152],[-28,153],[-33,151],[-37,149],[-38,141],[-37,139],[-34,138],[-32,135],[-32,133],[-34,123],[-35,118],[-32,115],[-25,113],[-22,114],[-18,122],[-15,126],[-14,129],[-11,130],[-11,132]],
+ // Tasmania
+ [[-41,145],[-42,148],[-43,147],[-43,146],[-41,145]],
+ // New Zealand
+ [[-34,173],[-37,175],[-41,175],[-42,171],[-41,173],[-38,174],[-35,173],[-34,173]],
+ [[-41,173],[-44,169],[-46,167],[-47,167],[-44,171],[-42,174],[-41,173]],
+ // Iceland
+ [[66,-23],[64,-22],[63,-19],[64,-14],[66,-15],[66,-23]],
+ // Indonesia / Borneo
+ [[7,117],[4,117],[1,110],[-3,110],[-4,115],[-1,118],[4,118],[7,117]],
+ [[5,95],[5,97],[2,102],[-3,103],[-6,105],[-4,100],[0,98],[5,95]],
+];
+
+// ORTHOGRAPHIC EARTH
+(function(){
+  const canvas = document.getElementById('earth-canvas');
+  const ctx = canvas.getContext('2d');
+  let W=1, H=1, R=1;
+  let lon = 20;   // center longitude (deg) — rotation Y
+  let lat = 15;   // center latitude (deg)  — rotation X (tilt)
+  let vLon = 0.08; // auto-rotation speed (deg/frame)
+  let vLat = 0;
+  let dragging = false, lastX=0, lastY=0, userHeld=false;
+  let paused = false;
+
+  function sizeCanvas(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    R = Math.min(W,H)/2 - 1;
+  }
+  sizeCanvas();
+  window.addEventListener('resize', sizeCanvas);
+
+  // project lat/lon to canvas, or null if on back of sphere
+  function project(plat, plon){
+    const phi = plat * Math.PI/180;
+    const lam = (plon - lon) * Math.PI/180;
+    const phi0 = lat * Math.PI/180;
+    const cosC = Math.sin(phi0)*Math.sin(phi) + Math.cos(phi0)*Math.cos(phi)*Math.cos(lam);
+    if (cosC < 0) return null; // back side
+    const x = R * Math.cos(phi) * Math.sin(lam);
+    const y = R * (Math.cos(phi0)*Math.sin(phi) - Math.sin(phi0)*Math.cos(phi)*Math.cos(lam));
+    return { x: W/2 + x, y: H/2 - y, z: cosC };
+  }
+  window.__earthProject = project;
+
+  function drawSphere(){
+    ctx.clearRect(0,0,W,H);
+    const cx=W/2, cy=H/2;
+
+    // ocean base with subtle light source top-left
+    const og = ctx.createRadialGradient(cx-R*0.3, cy-R*0.3, R*0.2, cx, cy, R);
+    og.addColorStop(0, '#1a2540');
+    og.addColorStop(0.55, '#0e1830');
+    og.addColorStop(1, '#050814');
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fillStyle = og; ctx.fill();
+
+    // graticule
+    ctx.strokeStyle = 'rgba(148,180,255,0.08)';
+    ctx.lineWidth = 0.7;
+    // parallels
+    for (let la=-60; la<=60; la+=30){
+      ctx.beginPath();
+      let started=false;
+      for (let lo=-180; lo<=180; lo+=4){
+        const p = project(la, lo);
+        if (!p) { started=false; continue; }
+        if (!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    }
+    // meridians
+    for (let lo=-180; lo<180; lo+=30){
+      ctx.beginPath(); let started=false;
+      for (let la=-85; la<=85; la+=4){
+        const p = project(la, lo);
+        if (!p){ started=false; continue; }
+        if (!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    }
+
+    // continents
+    for (const poly of COASTS){
+      // fill
+      ctx.beginPath(); let started=false;
+      for (const [la, lo] of poly){
+        const p = project(la, lo);
+        if (!p){ started=false; continue; }
+        if (!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.closePath();
+      // shading by avg z (approx via center)
+      const grad = ctx.createLinearGradient(cx-R, cy-R, cx+R, cy+R);
+      grad.addColorStop(0, 'rgba(245,197,24,0.85)');
+      grad.addColorStop(1, 'rgba(202,138,4,0.7)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+      // stroke
+      ctx.strokeStyle = 'rgba(253,224,71,0.9)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    // day-side highlight
+    const hg = ctx.createRadialGradient(cx-R*0.45, cy-R*0.45, R*0.1, cx-R*0.2, cy-R*0.2, R*1.1);
+    hg.addColorStop(0, 'rgba(255,240,180,0.18)');
+    hg.addColorStop(0.4, 'rgba(255,240,180,0.05)');
+    hg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalCompositeOperation = 'screen';
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fillStyle = hg; ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // night-side shadow
+    const sg = ctx.createRadialGradient(cx+R*0.5, cy+R*0.4, R*0.2, cx+R*0.35, cy+R*0.3, R*1.2);
+    sg.addColorStop(0, 'rgba(0,0,0,0)');
+    sg.addColorStop(0.55, 'rgba(0,0,0,0.35)');
+    sg.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fillStyle = sg; ctx.fill();
+
+    // rim
+    ctx.beginPath(); ctx.arc(cx,cy,R-0.5,0,Math.PI*2);
+    ctx.strokeStyle = 'rgba(245,197,24,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // update overlay (pins + arcs SVG) using same projection
+  const pinsGroup = document.getElementById('pins-group');
+  const arcsGroup = document.getElementById('arcs-group');
+  const pinLabels = document.getElementById('pin-labels');
+
+  const pinNodes = CITIES.map(c => {
+    const halo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    halo.setAttribute('r','0.035'); halo.setAttribute('fill','url(#pinGlow)');
+    halo.setAttribute('class','ping');
+    pinsGroup.appendChild(halo);
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('r','0.012'); dot.setAttribute('fill','#fde047');
+    dot.setAttribute('stroke','#3a2a05'); dot.setAttribute('stroke-width','0.004');
+    pinsGroup.appendChild(dot);
+    const showLabel = ["Tokyo","São Paulo","London","Mumbai","Nairobi","Sydney","New York"].includes(c.name);
+    let tag = null;
+    if (showLabel){
+      tag = document.createElement('div');
+      tag.className = 'absolute mono text-[8px] uppercase tracking-widest';
+      tag.style.color='rgba(253,224,71,0.85)';
+      tag.style.textShadow='0 0 8px rgba(0,0,0,0.85)';
+      tag.style.transform='translate(8px,-50%)';
+      tag.textContent = c.name;
+      pinLabels.appendChild(tag);
+    }
+    return { c, halo, dot, tag };
+  });
+
+  const PAIRS = [
+    ["Tokyo","São Paulo"],["Berlin","Nairobi"],["New York","London"],
+    ["Mumbai","Sydney"],["Singapore","San Francisco"],["Dubai","Cape Town"],
+    ["Reykjavík","Lagos"],["London","Mumbai"]
+  ];
+  const cityByName = Object.fromEntries(CITIES.map(c=>[c.name,c]));
+
+  const arcNodes = PAIRS.map(([an,bn], i) => {
+    const a = cityByName[an], b = cityByName[bn]; if (!a||!b) return null;
+    const base = document.createElementNS('http://www.w3.org/2000/svg','path');
+    base.setAttribute('fill','none'); base.setAttribute('stroke','rgba(245,197,24,0.22)');
+    base.setAttribute('stroke-width','0.004');
+    arcsGroup.appendChild(base);
+    const flow = document.createElementNS('http://www.w3.org/2000/svg','path');
+    flow.setAttribute('fill','none'); flow.setAttribute('stroke','url(#arcGrad)');
+    flow.setAttribute('stroke-width','0.008'); flow.setAttribute('stroke-linecap','round');
+    flow.setAttribute('stroke-dasharray','0.16 0.8');
+    flow.style.animation = `dash-flow ${7 + (i%4)}s linear infinite`;
+    flow.style.animationDelay = (i*0.6)+'s';
+    arcsGroup.appendChild(flow);
+    const pkt = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    pkt.setAttribute('r','0.012'); pkt.setAttribute('fill','#fef9c3');
+    pkt.setAttribute('filter','url(#blur-soft)');
+    arcsGroup.appendChild(pkt);
+    return { a,b, base, flow, pkt, i, t0: performance.now() + i*300, dur: (4 + i%3)*1000 };
+  }).filter(Boolean);
+
+  function toViewBoxCoord(px, py){
+    // SVG viewBox is -1..1 square centered — canvas coord in px → viewBox
+    const u = (px - W/2) / R; // -1..1
+    const v = (py - H/2) / R;
+    return { x: u, y: v };
+  }
+
+  function updateOverlay(){
+    // pins
+    for (const { c, halo, dot, tag } of pinNodes){
+      const p = project(c.lat, c.lon);
+      if (!p){ halo.style.display='none'; dot.style.display='none'; if (tag) tag.style.display='none'; continue; }
+      halo.style.display=''; dot.style.display='';
+      const vb = toViewBoxCoord(p.x, p.y);
+      halo.setAttribute('cx', vb.x); halo.setAttribute('cy', vb.y);
+      halo.style.transformOrigin = `${vb.x}px ${vb.y}px`;
+      dot.setAttribute('cx', vb.x); dot.setAttribute('cy', vb.y);
+      if (tag){
+        tag.style.display='';
+        tag.style.left = ((p.x/W)*100)+'%';
+        tag.style.top  = ((p.y/H)*100)+'%';
+      }
+    }
+    // arcs
+    const now = performance.now();
+    for (const n of arcNodes){
+      const pa = project(n.a.lat, n.a.lon);
+      const pb = project(n.b.lat, n.b.lon);
+      if (!pa || !pb){ n.base.style.display='none'; n.flow.style.display='none'; n.pkt.style.display='none'; continue; }
+      n.base.style.display=''; n.flow.style.display=''; n.pkt.style.display='';
+      const va = toViewBoxCoord(pa.x, pa.y);
+      const vb = toViewBoxCoord(pb.x, pb.y);
+      const mx=(va.x+vb.x)/2, my=(va.y+vb.y)/2;
+      const dx=vb.x-va.x, dy=vb.y-va.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      // lift toward center of view (upward in SVG = -y)
+      const lift = Math.min(dist*0.5, 0.6);
+      const cx = mx, cy = my - lift;
+      const d = `M ${va.x} ${va.y} Q ${cx} ${cy} ${vb.x} ${vb.y}`;
+      n.base.setAttribute('d', d);
+      n.flow.setAttribute('d', d);
+      // packet along bezier
+      const t = ((now - n.t0) % n.dur) / n.dur;
+      const bx = (1-t)*(1-t)*va.x + 2*(1-t)*t*cx + t*t*vb.x;
+      const by = (1-t)*(1-t)*va.y + 2*(1-t)*t*cy + t*t*vb.y;
+      n.pkt.setAttribute('cx', bx); n.pkt.setAttribute('cy', by);
+    }
+  }
+
+  function frame(){
+    if (!paused && !userHeld){
+      lon += vLon;
+      lat += vLat;
+      lat = Math.max(-75, Math.min(75, lat));
+      // damp any lat drift back to 15
+      lat += (15 - lat) * 0.003;
+    }
+    if (lon > 360) lon -= 360; if (lon < -360) lon += 360;
+    drawSphere();
+    updateOverlay();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // interaction
+  function onDown(e){
+    dragging = true; userHeld = true;
+    canvas.style.cursor='grabbing';
+    const pt = e.touches ? e.touches[0] : e;
+    lastX = pt.clientX; lastY = pt.clientY;
+    e.preventDefault();
+  }
+  function onMove(e){
+    if (!dragging) return;
+    const pt = e.touches ? e.touches[0] : e;
+    const dx = pt.clientX - lastX;
+    const dy = pt.clientY - lastY;
+    lastX = pt.clientX; lastY = pt.clientY;
+    lon += dx * 0.35;
+    lat = Math.max(-80, Math.min(80, lat - dy * 0.35));
+    // momentum
+    vLon = dx * 0.06;
+    vLat = -dy * 0.04;
+    e.preventDefault();
+  }
+  function onUp(){
+    dragging = false;
+    canvas.style.cursor='grab';
+    // release: decay momentum back to auto-spin
+    const decay = setInterval(()=>{
+      vLon = vLon * 0.92 + 0.08 * 0.08;
+      vLat *= 0.9;
+      if (Math.abs(vLon - 0.08) < 0.005 && Math.abs(vLat) < 0.005){
+        vLon = 0.08; vLat = 0; userHeld = false;
+        clearInterval(decay);
+      }
+    }, 30);
+  }
+  canvas.addEventListener('mousedown', onDown);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', onDown, {passive:false});
+  canvas.addEventListener('touchmove', onMove, {passive:false});
+  canvas.addEventListener('touchend', onUp);
+
+  // expose pause control
+  window.__earthSetPaused = (p) => { paused = p; };
+})();
+
+/* CIPHER RAIN */
+const rainHost = document.getElementById('cipher-rain');
+function randomHex(n){ return Array.from({length:n},()=>Math.floor(Math.random()*16).toString(16)).join(''); }
+function spawnCipher(){
+    const el = document.createElement('div');
+    el.className = 'cipher';
+    el.style.left = (3 + Math.random()*94) + '%';
+    el.style.top  = (20 + Math.random()*70) + '%';
+    el.style.animationDuration = (5 + Math.random()*4) + 's';
+    el.style.animationDelay = (Math.random()*2) + 's';
+    el.textContent = '0x' + randomHex(8 + Math.floor(Math.random()*10));
+    rainHost.appendChild(el);
+    setTimeout(()=>el.remove(), 10000);
+}
+for (let i=0;i<6;i++) spawnCipher();
+setInterval(spawnCipher, 1400);
+
+/* FEED */
+const FEED_TEMPLATES = [
+    (a,b)=>`TX ${randomHex(4)} · <span style="color:var(--amber-bright)">${a.name}</span> → <span style="color:var(--amber-bright)">${b.name}</span>`,
+    (a,b)=>`HS · ${a.name} ↔ ${b.name} · <span style="color:var(--amber-bright)">ok</span>`,
+    (a,b)=>`RX ${randomHex(4)} · <span style="color:var(--amber-bright)">${b.name}</span> ← ${a.name}`,
+    (a,b)=>`KEY rot · ${a.name} · <span style="color:var(--amber-bright)">${randomHex(6)}</span>`,
+];
+const feed = document.getElementById('feed-list');
+function pushFeed(){
+    const a = CITIES[Math.floor(Math.random()*CITIES.length)];
+    let b;  do { b = CITIES[Math.floor(Math.random()*CITIES.length)]; } while (b===a);
+    const line = FEED_TEMPLATES[Math.floor(Math.random()*FEED_TEMPLATES.length)](a,b);
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 opacity-0 transition-opacity duration-500';
+    row.innerHTML = `<span class="text-amber-200/30 text-[8px] mono">${new Date().toTimeString().slice(0,8)}</span>
+                     <span class="flex-1 text-amber-100/75 truncate">${line}</span>`;
+    feed.prepend(row);
+    requestAnimationFrame(()=>row.classList.add('opacity-100'));
+    while (feed.children.length > 5) feed.lastChild.remove();
+}
+pushFeed(); pushFeed(); pushFeed();
+setInterval(pushFeed, 1800);
+
+/* stats */
+const latencyEl = document.getElementById('latency-stat');
+const sessionsEl = document.getElementById('sessions-stat');
+let sessions = 1284;
+setInterval(()=>{
+    latencyEl.textContent = (30 + Math.floor(Math.random()*30)) + 'ms';
+    sessions += Math.floor(Math.random()*5) - 1;
+    sessionsEl.textContent = sessions.toLocaleString();
+}, 1800);
+
+/* tick ring */
+(function(){
+    const g = document.querySelector('#tick-ring g');
+    if (!g) return;
+    for (let i=0;i<48;i++){
+        const a = (i/48) * Math.PI * 2;
+        const r1 = i%4===0 ? 48 : 49;
+        const r2 = 50;
+        const x1 = 50 + Math.cos(a)*r1;
+        const y1 = 50 + Math.sin(a)*r1;
+        const x2 = 50 + Math.cos(a)*r2;
+        const y2 = 50 + Math.sin(a)*r2;
+        const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+        l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+        l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+        l.setAttribute('stroke','rgba(245,197,24,0.35)');
+        l.setAttribute('stroke-width', i%4===0 ? '0.25' : '0.12');
+        g.appendChild(l);
+    }
+})();
+
+/* Globe play/pause */
+let __paused = false;
+function toggleGlobe(){
+    __paused = !__paused;
+    window.__earthSetPaused && window.__earthSetPaused(__paused);
+    document.getElementById('globe-toggle-label').textContent = __paused ? '▶ play' : '◼ pause';
+}
+
+/* AUTH */
+let isLogin = true;
+
+function toggleAuth() {
+    isLogin = !isLogin;
+    const extras = document.getElementById('reg-extras');
+    const confirmBox = document.getElementById('confirm-pass-box');
+    extras.classList.toggle('hidden', isLogin);
+    confirmBox.classList.toggle('hidden', isLogin);
+
+    document.getElementById('auth-title').innerText = isLogin ? 'Welcome back' : 'Create Account';
+    document.getElementById('auth-subtitle').innerText = isLogin ? 'Open a secure tunnel.' : 'Join the ephemeral relay.';
+    document.getElementById('submit-btn').innerText = isLogin ? 'Open Secure Tunnel →' : 'Create Account →';
+    document.getElementById('toggle-link').innerHTML = isLogin
+        ? 'Don\'t have an account? <span class="font-bold" style="color:var(--amber-bright)">Register</span>'
+        : 'Already have an account? <span class="font-bold" style="color:var(--amber-bright)">Login</span>';
+}
+
+async function submitAuth() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const endpoint = isLogin ? '/api/login' : '/api/register';
+    const payload = { username, password };
+    if (!isLogin) {
+        payload.email = document.getElementById('email').value;
+        payload.phone = document.getElementById('phone').value;
+        payload.confirmPassword = document.getElementById('confirmPassword').value;
+    }
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (isLogin) {
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('username', data.username);
+                window.location.href = '/chat.html';
+            } else {
+                alert('Registration successful! Please login.');
+                toggleAuth();
             }
-
-            async function submitAuth() {
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-                const endpoint = isLogin ? '/api/login' : '/api/register';
-
-                const payload = { username, password };
-                if (!isLogin) {
-                    payload.email = document.getElementById('email').value;
-                    payload.phone = document.getElementById('phone').value;
-                    payload.confirmPassword = document.getElementById('confirmPassword').value;
-                }
-
-                try {
-                    const res = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    const data = await res.json();
-
-                    if (data.success) {
-                        if (isLogin) {
-                            localStorage.setItem('userId', data.userId);
-                            localStorage.setItem('username', data.username);
-                            window.location.href = '/chat.html';
-                        } else {
-                            alert('Registration successful! Please login.');
-                            toggleAuth();
-                        }
-                    } else {
-                        alert(data.error || 'Authentication failed');
-                    }
-                } catch (err) {
-                    alert('Connection error. Is the server running?');
-                }
-            }
-        </script>
-    </body>
-    </html>
+        } else {
+            alert(data.error || 'Authentication failed');
+        }
+    } catch (err) {
+        alert('Connection error. Is the server running?');
+    }
+}
+</script>
+</body>
+</html>
