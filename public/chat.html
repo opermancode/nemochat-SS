@@ -164,6 +164,36 @@
             background: linear-gradient(90deg, transparent, rgba(37,99,235,0.35), transparent);
             animation: scan-key 3s ease-in-out infinite;
         }
+
+        .media-menu {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 8px);
+            width: 170px;
+            background: linear-gradient(180deg, rgba(22,20,15,0.98), rgba(11,11,16,0.98));
+            border: 1px solid rgba(37,99,235,0.25);
+            border-radius: 12px;
+            box-shadow: 0 14px 30px rgba(0,0,0,0.45);
+            padding: 6px;
+            display: none;
+            z-index: 40;
+        }
+        .media-menu.open { display: block; }
+        .media-menu button {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: transparent;
+            color: #bfdbfe;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        .media-menu button:hover { background: rgba(37,99,235,0.1); }
     </style>
 </head>
 <body class="h-screen flex overflow-hidden relative">
@@ -280,6 +310,18 @@
                         ⌘ + ↵
                     </div>
                 </div>
+                <div class="relative">
+                    <button id="media-trigger" onclick="toggleMediaMenu()" class="field w-11 h-11 rounded-xl flex items-center justify-center" title="Share photo">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14.5 4h-5L7.6 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2.6z"/>
+                            <circle cx="12" cy="12" r="3.2"/>
+                        </svg>
+                    </button>
+                    <div id="media-menu" class="media-menu">
+                        <button onclick="pickFromGallery()">📁 Gallery Photo</button>
+                        <button onclick="takePhoto()">📷 Take Photo</button>
+                    </div>
+                </div>
                 <button onclick="sendMessage()" class="btn-primary px-5 py-3 rounded-xl font-bold text-[13px] tracking-tight flex items-center gap-2">
                     Send
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -287,6 +329,8 @@
                     </svg>
                 </button>
             </div>
+            <input id="gallery-input" type="file" accept="image/*" class="hidden">
+            <input id="camera-input" type="file" accept="image/*" capture="environment" class="hidden">
             <p class="text-[8px] text-center mt-2 mono uppercase tracking-[0.25em]" style="color: rgba(96,165,250,0.3)">
                 Ephemeral Session · Messages vanish on disconnect · Not even the owner can read them
             </p>
@@ -300,6 +344,9 @@
             const myName = localStorage.getItem('username');
             let activePeerId = null;
             let activePeerName = null;
+            const mediaMenu = document.getElementById('media-menu');
+            const galleryInput = document.getElementById('gallery-input');
+            const cameraInput = document.getElementById('camera-input');
 
             // only force redirect if socket.io actually loaded (real server context)
             if (!myId && typeof io === 'function' && io.toString().indexOf('on:function') === -1) {
@@ -454,8 +501,8 @@
                 const input = document.getElementById('msg-input');
                 const text = input.value.trim();
                 if (!activePeerId || !text) return;
-                socket.emit('private_message', { toId: activePeerId, fromId: myId, message: text });
-                saveAndRender(activePeerId, 'me', text);
+                socket.emit('private_message', { toId: activePeerId, fromId: myId, messageType: 'text', message: text });
+                saveAndRender(activePeerId, 'me', { kind: 'text', text });
                 input.value = '';
             };
 
@@ -464,14 +511,19 @@
             });
 
             socket.on('receive_message', (data) => {
-                saveAndRender(data.fromId, 'them', data.message);
+                if (data.messageType === 'image' && data.imageData) {
+                    saveAndRender(data.fromId, 'them', { kind: 'image', imageData: data.imageData });
+                } else {
+                    saveAndRender(data.fromId, 'them', { kind: 'text', text: data.message || '' });
+                }
                 if (activePeerId != data.fromId) loadFriends();
             });
 
-            function saveAndRender(peerId, sender, text) {
+            function saveAndRender(peerId, sender, payload) {
                 const key = `chat_log_${peerId}`;
                 const history = JSON.parse(sessionStorage.getItem(key) || "[]");
-                history.push({ sender, text, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+                const msg = payload && typeof payload === 'object' ? payload : { kind: 'text', text: String(payload || '') };
+                history.push({ sender, ...msg, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
                 sessionStorage.setItem(key, JSON.stringify(history));
                 if (activePeerId == peerId) loadHistory();
             }
@@ -504,12 +556,16 @@
                     const prev = history[i-1];
                     const showAvatar = !prev || prev.sender !== m.sender;
                     const isMe = m.sender === 'me';
+                    const messageKind = m.kind || 'text';
                     return `
                         <div class="flex ${isMe ? 'justify-end' : 'justify-start'} msg-appear items-end gap-2">
                             ${!isMe ? `<div class="avatar w-7 h-7 rounded-md flex items-center justify-center text-[10px] shrink-0 mb-1 ${showAvatar ? '' : 'opacity-0'}">${initials(activePeerName)}</div>` : ''}
                             <div class="max-w-[65%] min-w-0">
                                 <div class="${isMe ? 'bubble-me' : 'bubble-them'} px-3.5 py-2 rounded-2xl ${isMe ? 'rounded-br-sm' : 'rounded-bl-sm'}">
-                                    <p class="text-[13px] leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(m.text)}</p>
+                                    ${messageKind === 'image' && m.imageData
+                                        ? `<img src="${m.imageData}" alt="Shared photo" class="rounded-xl max-w-full max-h-[260px] object-cover">`
+                                        : `<p class="text-[13px] leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(m.text || '')}</p>`
+                                    }
                                 </div>
                                 <div class="text-[8px] mono uppercase tracking-widest mt-1 px-1 ${isMe ? 'text-right text-blue-200/30' : 'text-blue-200/25'}">
                                     ${m.time} ${isMe ? '· encrypted ✓' : ''}
@@ -530,6 +586,57 @@
                 setTimeout(()=> t.style.opacity='0', 1800);
                 setTimeout(()=> t.remove(), 2300);
             }
+
+            function closeMediaMenu(){
+                mediaMenu.classList.remove('open');
+            }
+
+            window.toggleMediaMenu = function(){
+                mediaMenu.classList.toggle('open');
+            };
+
+            window.pickFromGallery = function(){
+                closeMediaMenu();
+                if (!activePeerId) return toast('Select a tunnel first');
+                galleryInput.click();
+            };
+
+            window.takePhoto = function(){
+                closeMediaMenu();
+                if (!activePeerId) return toast('Select a tunnel first');
+                cameraInput.click();
+            };
+
+            function handlePhotoSelect(evt){
+                const file = evt.target.files && evt.target.files[0];
+                evt.target.value = '';
+                if (!file) return;
+                if (!activePeerId) return toast('Select a tunnel first');
+                if (!file.type.startsWith('image/')) return toast('Only image files are allowed');
+                if (file.size > 5 * 1024 * 1024) return toast('Image too large (max 5MB)');
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const imageData = reader.result;
+                    socket.emit('private_message', {
+                        toId: activePeerId,
+                        fromId: myId,
+                        messageType: 'image',
+                        imageData
+                    });
+                    saveAndRender(activePeerId, 'me', { kind: 'image', imageData });
+                };
+                reader.readAsDataURL(file);
+            }
+
+            galleryInput.addEventListener('change', handlePhotoSelect);
+            cameraInput.addEventListener('change', handlePhotoSelect);
+
+            document.addEventListener('click', (e) => {
+                if (!mediaMenu.contains(e.target) && e.target.id !== 'media-trigger' && !document.getElementById('media-trigger').contains(e.target)) {
+                    closeMediaMenu();
+                }
+            });
 
             window.logout = function() {
                 localStorage.clear();
