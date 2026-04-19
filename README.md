@@ -64,13 +64,13 @@ Inside MySQL shell:
 
 ```sql
 CREATE DATABASE nemochat;
-CREATE USER 'nemo_user'@'localhost' IDENTIFIED BY 'omkarrss';
+CREATE USER 'nemo_user'@'localhost' IDENTIFIED BY 'passwd';
 GRANT ALL PRIVILEGES ON nemochat.* TO 'nemo_user'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;
 ```
 
-> Change `omkarrss` to a strong password in production. Update `.env` to match.
+> Change `passwd` to a strong password in production. Update `.env` to match.
 
 ---
 
@@ -117,7 +117,7 @@ Contents:
 ```env
 DB_HOST=localhost
 DB_USER=nemo_user
-DB_PASS=omkarrss
+DB_PASS=passwd
 DB_NAME=nemochat
 PORT=3000
 ```
