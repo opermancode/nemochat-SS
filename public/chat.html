@@ -244,6 +244,16 @@
         </div>
 
         <div class="px-4 py-3 border-t text-[8px] mono uppercase tracking-[0.25em]" style="border-color: rgba(37,99,235,0.08); color: rgba(96,165,250,0.3)">
+            <div class="mb-3 rounded-lg p-2.5" style="background: rgba(37,99,235,0.04); border: 1px solid rgba(37,99,235,0.12);">
+                <div class="flex items-center justify-between">
+                    <span class="text-[8px] uppercase tracking-[0.22em] text-blue-100/55">Interface Theme</span>
+                    <button id="reset-theme-btn" class="text-[8px] font-bold uppercase tracking-[0.2em] text-blue-200/55 hover:text-blue-100">Reset</button>
+                </div>
+                <div class="mt-2 flex items-center gap-2">
+                    <input id="theme-color-input" type="color" value="#2563eb" class="w-8 h-8 rounded border-0 p-0 bg-transparent cursor-pointer">
+                    <span id="theme-hex-value" class="text-[10px] mono text-blue-100/70">#2563EB</span>
+                </div>
+            </div>
             <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full soft-pulse" style="background: var(--amber)"></span> E2E · AES-256</span>
                 <span>v2.4.1</span>
@@ -347,6 +357,12 @@
             const mediaMenu = document.getElementById('media-menu');
             const galleryInput = document.getElementById('gallery-input');
             const cameraInput = document.getElementById('camera-input');
+            let beepAudioCtx = null;
+            const THEME_STORAGE_KEY = 'ui_theme_color';
+            const themeInput = document.getElementById('theme-color-input');
+            const themeHexValue = document.getElementById('theme-hex-value');
+            const resetThemeBtn = document.getElementById('reset-theme-btn');
+            const defaultTheme = '#2563EB';
 
             // only force redirect if socket.io actually loaded (real server context)
             if (!myId && typeof io === 'function' && io.toString().indexOf('on:function') === -1) {
@@ -356,6 +372,14 @@
 
             document.getElementById('my-username').textContent = myName || 'guest';
 
+            const localTheme = localStorage.getItem(THEME_STORAGE_KEY);
+            if (isValidThemeColor(localTheme)) {
+                applyTheme(localTheme);
+            } else {
+                applyTheme(defaultTheme);
+            }
+            loadThemePreference();
+
             (function(){
                 const hex = Array.from({length:6}, ()=> Math.floor(Math.random()*16).toString(16)).join('');
                 document.getElementById('session-key').textContent = '0x' + hex + '…';
@@ -363,6 +387,18 @@
 
             if (myId) socket.emit('register_online', myId);
             loadFriends();
+
+            themeInput.addEventListener('input', () => {
+                const color = normalizeThemeColor(themeInput.value);
+                if (!isValidThemeColor(color)) return;
+                applyTheme(color);
+                saveThemePreference(color, false);
+            });
+
+            resetThemeBtn.addEventListener('click', () => {
+                applyTheme(defaultTheme);
+                saveThemePreference(defaultTheme, true);
+            });
 
             function initials(name){
                 return (name||'?').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
@@ -523,8 +559,93 @@
                 } else {
                     saveAndRender(data.fromId, 'them', { kind: 'text', text: data.message || '' });
                 }
+                playIncomingBeep();
                 if (activePeerId != data.fromId) loadFriends();
             });
+
+            function playIncomingBeep() {
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    if (!beepAudioCtx) beepAudioCtx = new AudioCtx();
+                    if (beepAudioCtx.state === 'suspended') beepAudioCtx.resume();
+
+                    const now = beepAudioCtx.currentTime;
+                    const osc = beepAudioCtx.createOscillator();
+                    const gain = beepAudioCtx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, now);
+
+                    gain.gain.setValueAtTime(0.0001, now);
+                    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+
+                    osc.connect(gain);
+                    gain.connect(beepAudioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.16);
+                } catch (_) {}
+            }
+
+            async function loadThemePreference() {
+                if (!myId) return;
+                try {
+                    const res = await fetch(`/api/users/${myId}/theme`);
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (!isValidThemeColor(data.themeColor)) return;
+                    applyTheme(data.themeColor);
+                    localStorage.setItem(THEME_STORAGE_KEY, data.themeColor);
+                } catch (_) {}
+            }
+
+            async function saveThemePreference(color, withToast) {
+                localStorage.setItem(THEME_STORAGE_KEY, color);
+                if (!myId) return;
+                try {
+                    const res = await fetch(`/api/users/${myId}/theme`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ themeColor: color })
+                    });
+                    if (!res.ok) throw new Error('save_failed');
+                    if (withToast) toast(`Theme set to ${color}`);
+                } catch (_) {
+                    if (withToast) toast('Theme saved locally only');
+                }
+            }
+
+            function applyTheme(color) {
+                const normalized = normalizeThemeColor(color) || defaultTheme;
+                const root = document.documentElement.style;
+                root.setProperty('--amber', normalized);
+                root.setProperty('--amber-bright', tintHex(normalized, 26));
+                root.setProperty('--blue', normalized);
+                themeInput.value = normalized;
+                themeHexValue.textContent = normalized.toUpperCase();
+            }
+
+            function normalizeThemeColor(color) {
+                if (typeof color !== 'string') return null;
+                const c = color.trim().toUpperCase();
+                return /^#[0-9A-F]{6}$/.test(c) ? c : null;
+            }
+
+            function isValidThemeColor(color) {
+                return !!normalizeThemeColor(color);
+            }
+
+            function tintHex(hex, percent) {
+                const value = normalizeThemeColor(hex);
+                if (!value) return defaultTheme;
+                const rgb = value.slice(1).match(/.{2}/g).map(v => parseInt(v, 16));
+                const tinted = rgb.map(channel => {
+                    const next = Math.round(channel + (255 - channel) * (percent / 100));
+                    return Math.max(0, Math.min(255, next));
+                });
+                return `#${tinted.map(v => v.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+            }
 
             function saveAndRender(peerId, sender, payload) {
                 const key = `chat_log_${peerId}`;

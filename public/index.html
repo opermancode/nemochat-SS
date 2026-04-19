@@ -920,6 +920,11 @@ async function submitAuth() {
             if (isLogin) {
                 localStorage.setItem('userId', data.userId);
                 localStorage.setItem('username', data.username);
+                if (data.themeColor) {
+                    localStorage.setItem('ui_theme_color', data.themeColor);
+                } else {
+                    localStorage.removeItem('ui_theme_color');
+                }
                 window.location.href = '/chat.html';
             } else {
                 alert('Registration successful! Please login.');

@@ -46,14 +46,59 @@
     app.post('/api/login', async (req, res) => {
         const { username, password } = req.body;
         try {
-            const [rows] = await db.execute("SELECT * FROM users WHERE username = ?", [username]);
+            const [rows] = await db.execute(
+                `SELECT users.id, users.username, users.password, user_themes.theme_color
+                 FROM users
+                 LEFT JOIN user_themes ON user_themes.user_id = users.id
+                 WHERE users.username = ?
+                 LIMIT 1`,
+                [username]
+            );
             if (rows[0] && await bcrypt.compare(password, rows[0].password)) {
-                res.json({ success: true, userId: rows[0].id, username: rows[0].username });
+                res.json({
+                    success: true,
+                    userId: rows[0].id,
+                    username: rows[0].username,
+                    themeColor: rows[0].theme_color || null
+                });
             } else {
                 res.status(401).json({ error: "Invalid username or password" });
             }
         } catch (err) {
             res.status(500).json({ error: "Server error during login" });
+        }
+    });
+
+    const themeRegex = /^#[0-9A-Fa-f]{6}$/;
+
+    app.get('/api/users/:userId/theme', async (req, res) => {
+        try {
+            const [rows] = await db.execute(
+                "SELECT theme_color FROM user_themes WHERE user_id = ? LIMIT 1",
+                [req.params.userId]
+            );
+            res.json({ themeColor: rows[0]?.theme_color || null });
+        } catch (err) {
+            res.status(500).json({ error: "Failed to load theme" });
+        }
+    });
+
+    app.post('/api/users/:userId/theme', async (req, res) => {
+        const { themeColor } = req.body || {};
+        if (!themeRegex.test(themeColor || '')) {
+            return res.status(400).json({ error: "Invalid theme color" });
+        }
+
+        try {
+            await db.execute(
+                `INSERT INTO user_themes (user_id, theme_color)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE theme_color = VALUES(theme_color)`,
+                [req.params.userId, themeColor.toUpperCase()]
+            );
+            res.json({ success: true, themeColor: themeColor.toUpperCase() });
+        } catch (err) {
+            res.status(500).json({ error: "Failed to save theme" });
         }
     });
 
