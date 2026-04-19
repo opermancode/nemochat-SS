@@ -57,6 +57,9 @@
         }
     });
 
+    // --- Socket Relay Logic ---
+    const onlineUsers = new Map();
+
     // --- Friends List (Current Tunnels) ---
     app.get('/api/friends/:userId', async (req, res) => {
         try {
@@ -66,7 +69,11 @@
                 WHERE friends.user_id1 = ?`, 
                 [req.params.userId]
             );
-            res.json(rows);
+            const friends = rows.map((row) => ({
+                ...row,
+                isOnline: onlineUsers.has(String(row.id))
+            }));
+            res.json(friends);
         } catch (err) { res.status(500).json({ error: "Failed to load friends" }); }
     });
 
@@ -92,12 +99,13 @@
         }
     });
 
-    // --- Socket Relay Logic ---
-    const onlineUsers = new Map();
-
     io.on('connection', (socket) => {
         socket.on('register_online', (userId) => {
-            if (userId) onlineUsers.set(userId.toString(), socket.id);
+            if (userId) {
+                const normalizedId = userId.toString();
+                onlineUsers.set(normalizedId, socket.id);
+                io.emit('presence_update', { userId: normalizedId, isOnline: true });
+            }
         });
 
         socket.on('send_request', (data) => {
@@ -128,7 +136,11 @@
 
         socket.on('disconnect', () => {
             for (const [uid, sid] of onlineUsers.entries()) {
-                if (sid === socket.id) { onlineUsers.delete(uid); break; }
+                if (sid === socket.id) {
+                    onlineUsers.delete(uid);
+                    io.emit('presence_update', { userId: uid, isOnline: false });
+                    break;
+                }
             }
         });
     });
