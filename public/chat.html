@@ -28,7 +28,10 @@
             --ink: #dbeafe;
             --amber: #2563eb;
             --amber-bright: #60a5fa;
+            --theme-dark: #1d4ed8;
             --blue: #2563eb;
+            --theme-rgb: 37 99 235;
+            --theme-light-rgb: 147 197 253;
         }
         * { box-sizing: border-box; }
         html, body { height: 100%; margin: 0; }
@@ -41,8 +44,8 @@
         .mono { font-family: 'JetBrains Mono', monospace; }
 
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-thumb { background: rgba(37,99,235,0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(37,99,235,0.4); }
+        ::-webkit-scrollbar-thumb { background: rgb(var(--theme-rgb) / 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgb(var(--theme-rgb) / 0.4); }
 
         .glass {
             background: linear-gradient(180deg, rgba(20,18,10,0.75), rgba(10,10,15,0.85));
@@ -51,13 +54,13 @@
 
         .grid-bg {
             background-image:
-                linear-gradient(rgba(37,99,235,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(37,99,235,0.04) 1px, transparent 1px);
+                linear-gradient(rgb(var(--theme-rgb) / 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgb(var(--theme-rgb) / 0.04) 1px, transparent 1px);
             background-size: 44px 44px;
             mask-image: radial-gradient(ellipse 70% 80% at 50% 40%, #000 40%, transparent 92%);
         }
 
-        .logo-glow { filter: drop-shadow(0 2px 8px rgba(37,99,235,0.45)); }
+        .logo-glow { filter: drop-shadow(0 2px 8px rgb(var(--theme-rgb) / 0.45)); }
 
         @keyframes bob {
             0%, 100% { transform: translateY(0) rotate(-2deg); }
@@ -81,39 +84,39 @@
         .req-appear { animation: req-in 0.3s cubic-bezier(0.22,1,0.36,1); }
 
         .bubble-me {
-            background: linear-gradient(180deg, #60a5fa 0%, #2563eb 55%, #1d4ed8 100%);
+            background: linear-gradient(180deg, var(--amber-bright) 0%, var(--amber) 55%, var(--theme-dark) 100%);
             color: #ffffff;
             box-shadow:
-                0 6px 18px -8px rgba(37,99,235,0.55),
+                0 6px 18px -8px rgb(var(--theme-rgb) / 0.55),
                 inset 0 1px 0 rgba(255,255,255,0.4),
                 inset 0 -1px 0 rgba(0,0,0,0.18);
         }
         .bubble-them {
             background: linear-gradient(180deg, rgba(30,28,22,0.95), rgba(18,18,24,0.95));
-            border: 1px solid rgba(37,99,235,0.15);
-            color: #bfdbfe;
+            border: 1px solid rgb(var(--theme-rgb) / 0.15);
+            color: rgb(var(--theme-light-rgb) / 0.85);
         }
 
         .field {
             background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(37,99,235,0.12);
+            border: 1px solid rgb(var(--theme-rgb) / 0.12);
             transition: all .2s;
             color: var(--ink);
         }
-        .field::placeholder { color: rgba(219,234,254,0.25); }
+        .field::placeholder { color: rgb(var(--theme-light-rgb) / 0.25); }
         .field:focus {
             border-color: var(--amber);
-            background: rgba(37,99,235,0.04);
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+            background: rgb(var(--theme-rgb) / 0.04);
+            box-shadow: 0 0 0 3px rgb(var(--theme-rgb) / 0.12);
             outline: none;
         }
 
         .btn-primary {
             position: relative; overflow: hidden;
-            background: linear-gradient(180deg, #60a5fa 0%, #2563eb 55%, #1d4ed8 100%);
+            background: linear-gradient(180deg, var(--amber-bright) 0%, var(--amber) 55%, var(--theme-dark) 100%);
             color: #ffffff;
             box-shadow:
-                0 8px 20px -10px rgba(37,99,235,0.65),
+                0 8px 20px -10px rgb(var(--theme-rgb) / 0.65),
                 inset 0 1px 0 rgba(255,255,255,0.45),
                 inset 0 -1px 0 rgba(0,0,0,0.2);
             transition: transform .1s;
@@ -132,16 +135,16 @@
             transition: all .15s;
         }
         .tunnel-item:hover {
-            background: rgba(37,99,235,0.04);
-            border-color: rgba(37,99,235,0.12);
+            background: rgb(var(--theme-rgb) / 0.04);
+            border-color: rgb(var(--theme-rgb) / 0.12);
         }
         .tunnel-item.active {
-            background: rgba(37,99,235,0.08);
-            border-color: rgba(37,99,235,0.3);
+            background: rgb(var(--theme-rgb) / 0.08);
+            border-color: rgb(var(--theme-rgb) / 0.3);
         }
 
         .avatar {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 55%, #2563eb 100%);
+            background: linear-gradient(135deg, var(--amber) 0%, var(--theme-dark) 55%, var(--amber) 100%);
             color: #0a0a0f;
             font-weight: 800;
             letter-spacing: -0.03em;
@@ -161,7 +164,7 @@
         .key-scan { position: relative; overflow: hidden; }
         .key-scan::after {
             content: ""; position: absolute; top: 0; left: 0; width: 20%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(37,99,235,0.35), transparent);
+            background: linear-gradient(90deg, transparent, rgb(var(--theme-rgb) / 0.35), transparent);
             animation: scan-key 3s ease-in-out infinite;
         }
 
@@ -171,7 +174,7 @@
             bottom: calc(100% + 8px);
             width: 170px;
             background: linear-gradient(180deg, rgba(22,20,15,0.98), rgba(11,11,16,0.98));
-            border: 1px solid rgba(37,99,235,0.25);
+            border: 1px solid rgb(var(--theme-rgb) / 0.25);
             border-radius: 12px;
             box-shadow: 0 14px 30px rgba(0,0,0,0.45);
             padding: 6px;
@@ -186,14 +189,28 @@
             border-radius: 8px;
             padding: 8px 10px;
             background: transparent;
-            color: #bfdbfe;
+            color: rgb(var(--theme-light-rgb) / 0.85);
             font-size: 11px;
             font-family: 'JetBrains Mono', monospace;
             letter-spacing: 0.04em;
             text-transform: uppercase;
             cursor: pointer;
         }
-        .media-menu button:hover { background: rgba(37,99,235,0.1); }
+        .media-menu button:hover { background: rgb(var(--theme-rgb) / 0.1); }
+
+        .text-blue-300\/80 { color: rgb(var(--theme-light-rgb) / 0.8) !important; }
+        .text-blue-300\/40 { color: rgb(var(--theme-light-rgb) / 0.4) !important; }
+        .text-blue-200 { color: rgb(var(--theme-light-rgb) / 1) !important; }
+        .text-blue-200\/55 { color: rgb(var(--theme-light-rgb) / 0.55) !important; }
+        .text-blue-200\/30 { color: rgb(var(--theme-light-rgb) / 0.3) !important; }
+        .text-blue-200\/25 { color: rgb(var(--theme-light-rgb) / 0.25) !important; }
+        .text-blue-200\/20 { color: rgb(var(--theme-light-rgb) / 0.2) !important; }
+        .text-blue-100 { color: rgb(var(--theme-light-rgb) / 1) !important; }
+        .text-blue-100\/85 { color: rgb(var(--theme-light-rgb) / 0.85) !important; }
+        .text-blue-100\/80 { color: rgb(var(--theme-light-rgb) / 0.8) !important; }
+        .text-blue-100\/70 { color: rgb(var(--theme-light-rgb) / 0.7) !important; }
+        .text-blue-100\/55 { color: rgb(var(--theme-light-rgb) / 0.55) !important; }
+        .text-blue-100\/50 { color: rgb(var(--theme-light-rgb) / 0.5) !important; }
     </style>
 </head>
 <body class="h-screen flex overflow-hidden relative">
@@ -201,24 +218,24 @@
     <!-- ambient backdrop -->
     <div class="fixed inset-0 -z-10 grid-bg"></div>
     <div class="fixed inset-0 -z-10 pointer-events-none">
-        <div class="absolute top-[-20%] left-[-5%] w-[45%] h-[45%] rounded-full" style="background: radial-gradient(closest-side, rgba(37,99,235,0.1), transparent 70%); filter: blur(60px);"></div>
-        <div class="absolute bottom-[-20%] right-[-10%] w-[45%] h-[45%] rounded-full" style="background: radial-gradient(closest-side, rgba(37,99,235,0.09), transparent 70%); filter: blur(60px);"></div>
+        <div class="absolute top-[-20%] left-[-5%] w-[45%] h-[45%] rounded-full" style="background: radial-gradient(closest-side, rgb(var(--theme-rgb) / 0.1), transparent 70%); filter: blur(60px);"></div>
+        <div class="absolute bottom-[-20%] right-[-10%] w-[45%] h-[45%] rounded-full" style="background: radial-gradient(closest-side, rgb(var(--theme-rgb) / 0.09), transparent 70%); filter: blur(60px);"></div>
     </div>
 
     <!-- SIDEBAR -->
-    <aside class="w-[320px] border-r flex flex-col relative z-10" style="border-color: rgba(37,99,235,0.1); background: linear-gradient(180deg, rgba(14,12,7,0.85), rgba(8,8,12,0.9));">
+    <aside class="w-[320px] border-r flex flex-col relative z-10" style="border-color: rgb(var(--theme-rgb) / 0.1); background: linear-gradient(180deg, rgba(14,12,7,0.85), rgba(8,8,12,0.9));">
 
-        <div class="p-5 pb-3 border-b" style="border-color: rgba(37,99,235,0.08);">
+        <div class="p-5 pb-3 border-b" style="border-color: rgb(var(--theme-rgb) / 0.08);">
             <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center gap-2.5">
                     <img src="nemochat.png" alt="NemoChat" class="w-9 h-9 object-contain logo-glow logo-bob">
                     <div class="leading-tight">
                         <div class="text-[14px] font-bold tracking-tight">NemoChat<span style="color:var(--amber)">.</span></div>
-                        <div class="text-[8px] uppercase tracking-[0.25em]" style="color: rgba(96,165,250,0.4)">Ephemeral Relay</div>
+                        <div class="text-[8px] uppercase tracking-[0.25em]" style="color: rgb(var(--theme-light-rgb) / 0.4)">Ephemeral Relay</div>
                     </div>
                 </div>
                 <div class="text-right leading-tight">
-                    <div class="text-[8px] uppercase tracking-[0.25em]" style="color: rgba(96,165,250,0.35)">me</div>
+                    <div class="text-[8px] uppercase tracking-[0.25em]" style="color: rgb(var(--theme-light-rgb) / 0.35)">me</div>
                     <div id="my-username" class="text-[11px] font-semibold mono" style="color: var(--amber-bright);">—</div>
                 </div>
             </div>
@@ -234,17 +251,17 @@
 
         <div id="results-area" class="flex-1 overflow-y-auto px-3 py-3 space-y-1"></div>
 
-        <div class="p-3 border-t" style="border-color: rgba(37,99,235,0.08); background: rgba(37,99,235,0.015);">
+        <div class="p-3 border-t" style="border-color: rgb(var(--theme-rgb) / 0.08); background: rgb(var(--theme-rgb) / 0.015);">
             <div class="flex items-center justify-between mb-2 px-1">
-                <h3 class="text-[9px] font-bold uppercase tracking-[0.25em]" style="color: rgba(96,165,250,0.55)">Pending Invitations</h3>
-                <span id="request-count" class="text-[9px] mono px-1.5 rounded" style="background: rgba(37,99,235,0.1); color: var(--amber-bright)">0</span>
+                <h3 class="text-[9px] font-bold uppercase tracking-[0.25em]" style="color: rgb(var(--theme-light-rgb) / 0.55)">Pending Invitations</h3>
+                <span id="request-count" class="text-[9px] mono px-1.5 rounded" style="background: rgb(var(--theme-rgb) / 0.1); color: var(--amber-bright)">0</span>
             </div>
             <div id="request-area" class="space-y-1.5 max-h-[150px] overflow-y-auto"></div>
             <div id="request-empty" class="text-[10px] mono text-blue-200/20 italic px-1 py-2">No signals inbound.</div>
         </div>
 
-        <div class="px-4 py-3 border-t text-[8px] mono uppercase tracking-[0.25em]" style="border-color: rgba(37,99,235,0.08); color: rgba(96,165,250,0.3)">
-            <div class="mb-3 rounded-lg p-2.5" style="background: rgba(37,99,235,0.04); border: 1px solid rgba(37,99,235,0.12);">
+        <div class="px-4 py-3 border-t text-[8px] mono uppercase tracking-[0.25em]" style="border-color: rgb(var(--theme-rgb) / 0.08); color: rgb(var(--theme-light-rgb) / 0.3)">
+            <div class="mb-3 rounded-lg p-2.5" style="background: rgb(var(--theme-rgb) / 0.04); border: 1px solid rgb(var(--theme-rgb) / 0.12);">
                 <div class="flex items-center justify-between">
                     <span class="text-[8px] uppercase tracking-[0.22em] text-blue-100/55">Interface Theme</span>
                     <button id="reset-theme-btn" class="text-[8px] font-bold uppercase tracking-[0.2em] text-blue-200/55 hover:text-blue-100">Reset</button>
@@ -264,15 +281,15 @@
     <!-- MAIN CHAT -->
     <main class="flex-1 flex flex-col relative">
 
-        <div class="absolute top-0 right-0 w-[40%] h-[60%] pointer-events-none" style="background: radial-gradient(ellipse at top right, rgba(37,99,235,0.06), transparent 70%);"></div>
-        <div class="absolute bottom-0 left-0 w-[30%] h-[50%] pointer-events-none" style="background: radial-gradient(ellipse at bottom left, rgba(37,99,235,0.05), transparent 70%);"></div>
+        <div class="absolute top-0 right-0 w-[40%] h-[60%] pointer-events-none" style="background: radial-gradient(ellipse at top right, rgb(var(--theme-rgb) / 0.06), transparent 70%);"></div>
+        <div class="absolute bottom-0 left-0 w-[30%] h-[50%] pointer-events-none" style="background: radial-gradient(ellipse at bottom left, rgb(var(--theme-rgb) / 0.05), transparent 70%);"></div>
 
-        <header id="chat-header" class="px-5 py-3 border-b flex items-center justify-between glass z-10 relative" style="border-color: rgba(37,99,235,0.1);">
+        <header id="chat-header" class="px-5 py-3 border-b flex items-center justify-between glass z-10 relative" style="border-color: rgb(var(--theme-rgb) / 0.1);">
             <div class="flex items-center gap-3">
                 <div id="peer-avatar" class="w-9 h-9 rounded-lg flex items-center justify-center text-[14px] avatar hidden">?</div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <span id="status-dot" class="w-1.5 h-1.5 rounded-full" style="background: rgba(37,99,235,0.2)"></span>
+                        <span id="status-dot" class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--theme-rgb) / 0.2)"></span>
                         <span id="active-user-name" class="font-semibold text-[14px] text-blue-100/70">Select a tunnel to begin</span>
                     </div>
                     <div id="peer-sub" class="text-[9px] mono uppercase tracking-[0.25em] text-blue-200/30 mt-0.5">No active tunnel</div>
@@ -280,27 +297,27 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] mono uppercase tracking-widest" style="background: rgba(37,99,235,0.05); border: 1px solid rgba(37,99,235,0.15); color: var(--amber-bright);">
+                <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] mono uppercase tracking-widest" style="background: rgb(var(--theme-rgb) / 0.05); border: 1px solid rgb(var(--theme-rgb) / 0.15); color: var(--amber-bright);">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/></svg>
                     Encrypted
                 </div>
-                <button onclick="logout()" class="text-[9px] font-bold uppercase tracking-[0.25em] px-3 py-2 rounded-md transition-colors" style="color: rgba(96,165,250,0.4);"
+                <button onclick="logout()" class="text-[9px] font-bold uppercase tracking-[0.25em] px-3 py-2 rounded-md transition-colors" style="color: rgb(var(--theme-light-rgb) / 0.4);"
                     onmouseover="this.style.color='#fca5a5'; this.style.background='rgba(239,68,68,0.08)'"
-                    onmouseout="this.style.color='rgba(96,165,250,0.4)'; this.style.background='transparent'">
+                    onmouseout="this.style.color='rgb(var(--theme-light-rgb) / 0.4)'; this.style.background='transparent'">
                     Terminate Session
                 </button>
             </div>
         </header>
 
         <div class="relative px-5 py-1.5 text-[9px] mono uppercase tracking-[0.25em] flex items-center justify-between key-scan"
-             style="background: rgba(37,99,235,0.03); border-bottom: 1px solid rgba(37,99,235,0.08); color: rgba(96,165,250,0.4);">
+             style="background: rgb(var(--theme-rgb) / 0.03); border-bottom: 1px solid rgb(var(--theme-rgb) / 0.08); color: rgb(var(--theme-light-rgb) / 0.4);">
             <span>Session Key · <span id="session-key" class="text-blue-300/80">0x7af3c9…</span></span>
             <span>Owner-blind · Zero-log · Ephemeral</span>
         </div>
 
         <div id="messages-container" class="flex-1 px-6 py-6 overflow-y-auto space-y-3 relative z-0">
             <div class="h-full flex flex-col items-center justify-center text-center space-y-4">
-                <div class="w-20 h-20 rounded-2xl flex items-center justify-center relative" style="background: rgba(37,99,235,0.04); border: 1px solid rgba(37,99,235,0.12);">
+                <div class="w-20 h-20 rounded-2xl flex items-center justify-center relative" style="background: rgb(var(--theme-rgb) / 0.04); border: 1px solid rgb(var(--theme-rgb) / 0.12);">
                     <div class="absolute inset-0 rounded-2xl bracket-corner"></div>
                     <img src="nemochat.png" alt="" class="w-10 h-10 opacity-60 logo-bob">
                 </div>
@@ -311,12 +328,12 @@
             </div>
         </div>
 
-        <div class="px-5 py-3 border-t glass relative z-10" style="border-color: rgba(37,99,235,0.1);">
+        <div class="px-5 py-3 border-t glass relative z-10" style="border-color: rgb(var(--theme-rgb) / 0.1);">
             <div class="flex gap-3 max-w-5xl mx-auto items-center">
                 <div class="flex-1 relative">
                     <input id="msg-input" autocomplete="off" placeholder="Type a secure message…"
                         class="field w-full px-4 py-3 rounded-xl outline-none text-[13px] pr-20">
-                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] mono uppercase tracking-widest pointer-events-none" style="color: rgba(96,165,250,0.3)">
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] mono uppercase tracking-widest pointer-events-none" style="color: rgb(var(--theme-light-rgb) / 0.3)">
                         ⌘ + ↵
                     </div>
                 </div>
@@ -341,7 +358,7 @@
             </div>
             <input id="gallery-input" type="file" accept="image/*" class="hidden">
             <input id="camera-input" type="file" accept="image/*" capture="environment" class="hidden">
-            <p class="text-[8px] text-center mt-2 mono uppercase tracking-[0.25em]" style="color: rgba(96,165,250,0.3)">
+            <p class="text-[8px] text-center mt-2 mono uppercase tracking-[0.25em]" style="color: rgb(var(--theme-light-rgb) / 0.3)">
                 Ephemeral Session · Messages vanish on disconnect · Not even the owner can read them
             </p>
         </div>
@@ -419,7 +436,7 @@
                 const area = document.getElementById('results-area');
                 if (document.getElementById('search-bar').value) return;
 
-                area.innerHTML = '<h3 class="text-[9px] font-bold uppercase tracking-[0.25em] mb-2 px-2" style="color: rgba(96,165,250,0.55)">Your Tunnels <span class="mono ml-1" style="color: rgba(96,165,250,0.3)">' + friends.length + '</span></h3>';
+                area.innerHTML = '<h3 class="text-[9px] font-bold uppercase tracking-[0.25em] mb-2 px-2" style="color: rgb(var(--theme-light-rgb) / 0.55)">Your Tunnels <span class="mono ml-1" style="color: rgb(var(--theme-light-rgb) / 0.3)">' + friends.length + '</span></h3>';
 
                 if (friends.length === 0) {
                     area.innerHTML += '<p class="text-[10px] mono text-blue-200/25 italic px-2 py-3">No active tunnels. Search to invite someone.</p>';
@@ -432,7 +449,7 @@
                         ? 'w-1.5 h-1.5 rounded-full soft-pulse'
                         : 'w-1.5 h-1.5 rounded-full';
                     const onlineStyle = f.isOnline
-                        ? 'background: var(--amber); box-shadow: 0 0 10px rgba(37,99,235,0.4);'
+                        ? 'background: var(--amber); box-shadow: 0 0 10px rgb(var(--theme-rgb) / 0.4);'
                         : 'background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.4);';
                     const div = document.createElement('div');
                     div.className = `tunnel-item ${isActive ? 'active' : ''} flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer`;
@@ -458,7 +475,7 @@
                     const users = await res.json();
                     const area = document.getElementById('results-area');
 
-                    area.innerHTML = '<h3 class="text-[9px] font-bold uppercase tracking-[0.25em] mb-2 px-2" style="color: rgba(96,165,250,0.55)">Global Discovery</h3>';
+                    area.innerHTML = '<h3 class="text-[9px] font-bold uppercase tracking-[0.25em] mb-2 px-2" style="color: rgb(var(--theme-light-rgb) / 0.55)">Global Discovery</h3>';
                     if (users.length === 0){
                         area.innerHTML += '<p class="text-[10px] mono text-blue-200/25 italic px-2 py-3">No relays found for that query.</p>';
                     }
@@ -471,7 +488,7 @@
                             </div>
                             <button onclick="sendRequest(${u.id}, '${u.username.replace(/'/g,"\\'")}')"
                                 class="opacity-0 group-hover:opacity-100 text-[9px] font-bold tracking-widest px-2 py-1 rounded transition-all"
-                                style="background: rgba(37,99,235,0.12); color: var(--amber-bright); border: 1px solid rgba(37,99,235,0.25);">INVITE</button>
+                                style="background: rgb(var(--theme-rgb) / 0.12); color: var(--amber-bright); border: 1px solid rgb(var(--theme-rgb) / 0.25);">INVITE</button>
                         </div>
                     `).join('');
                 } catch(e) {}
@@ -489,8 +506,8 @@
                 const div = document.createElement('div');
                 div.id = `req-${data.fromId}`;
                 div.className = "req-appear p-2.5 rounded-lg text-[11px] flex justify-between items-center";
-                div.style.background = "rgba(37,99,235,0.06)";
-                div.style.border = "1px solid rgba(37,99,235,0.2)";
+                div.style.background = "rgb(var(--theme-rgb) / 0.06)";
+                div.style.border = "1px solid rgb(var(--theme-rgb) / 0.2)";
                 div.innerHTML = `
                     <div class="flex items-center gap-2 min-w-0 flex-1">
                         <div class="avatar w-6 h-6 rounded flex items-center justify-center text-[9px] shrink-0">${initials(data.fromName)}</div>
@@ -531,7 +548,7 @@
                 const dot = document.getElementById('status-dot');
                 dot.className = "w-1.5 h-1.5 rounded-full soft-pulse";
                 dot.style.background = 'var(--amber)';
-                dot.style.boxShadow = '0 0 10px rgba(37,99,235,0.5)';
+                dot.style.boxShadow = '0 0 10px rgb(var(--theme-rgb) / 0.5)';
                 const pav = document.getElementById('peer-avatar');
                 pav.classList.remove('hidden');
                 pav.textContent = initials(name);
@@ -618,10 +635,15 @@
 
             function applyTheme(color) {
                 const normalized = normalizeThemeColor(color) || defaultTheme;
+                const rgb = hexToRgb(normalized);
+                const lightRgb = hexToRgb(tintHex(normalized, 30));
                 const root = document.documentElement.style;
                 root.setProperty('--amber', normalized);
                 root.setProperty('--amber-bright', tintHex(normalized, 26));
+                root.setProperty('--theme-dark', shadeHex(normalized, 22));
                 root.setProperty('--blue', normalized);
+                root.setProperty('--theme-rgb', `${rgb.r} ${rgb.g} ${rgb.b}`);
+                root.setProperty('--theme-light-rgb', `${lightRgb.r} ${lightRgb.g} ${lightRgb.b}`);
                 themeInput.value = normalized;
                 themeHexValue.textContent = normalized.toUpperCase();
             }
@@ -647,6 +669,23 @@
                 return `#${tinted.map(v => v.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
             }
 
+            function shadeHex(hex, percent) {
+                const value = normalizeThemeColor(hex);
+                if (!value) return defaultTheme;
+                const rgb = value.slice(1).match(/.{2}/g).map(v => parseInt(v, 16));
+                const shaded = rgb.map(channel => {
+                    const next = Math.round(channel * (1 - (percent / 100)));
+                    return Math.max(0, Math.min(255, next));
+                });
+                return `#${shaded.map(v => v.toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+            }
+
+            function hexToRgb(hex) {
+                const value = normalizeThemeColor(hex) || defaultTheme;
+                const [r, g, b] = value.slice(1).match(/.{2}/g).map(v => parseInt(v, 16));
+                return { r, g, b };
+            }
+
             function saveAndRender(peerId, sender, payload) {
                 const key = `chat_log_${peerId}`;
                 const history = JSON.parse(sessionStorage.getItem(key) || "[]");
@@ -668,7 +707,7 @@
                 if (history.length === 0) {
                     container.innerHTML = `
                     <div class="h-full flex flex-col items-center justify-center text-center space-y-4">
-                        <div class="w-20 h-20 rounded-2xl flex items-center justify-center relative" style="background: rgba(37,99,235,0.04); border: 1px solid rgba(37,99,235,0.12);">
+                        <div class="w-20 h-20 rounded-2xl flex items-center justify-center relative" style="background: rgb(var(--theme-rgb) / 0.04); border: 1px solid rgb(var(--theme-rgb) / 0.12);">
                             <div class="absolute inset-0 rounded-2xl bracket-corner"></div>
                             <img src="nemochat.png" alt="" class="w-10 h-10 opacity-60 logo-bob">
                         </div>
@@ -708,7 +747,7 @@
             function toast(text){
                 const t = document.createElement('div');
                 t.className = "fixed top-5 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-[11px] mono uppercase tracking-widest z-50";
-                t.style.cssText = "background: linear-gradient(180deg, rgba(30,26,10,0.95), rgba(18,15,6,0.95)); border: 1px solid rgba(37,99,235,0.3); color: var(--amber-bright); box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);";
+                t.style.cssText = "background: linear-gradient(180deg, rgba(30,26,10,0.95), rgba(18,15,6,0.95)); border: 1px solid rgb(var(--theme-rgb) / 0.3); color: var(--amber-bright); box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);";
                 t.textContent = text;
                 document.body.appendChild(t);
                 setTimeout(()=> t.style.opacity='0', 1800);
