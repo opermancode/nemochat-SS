@@ -22,6 +22,18 @@ CREATE TABLE IF NOT EXISTS friends (
     FOREIGN KEY (user_id2) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Friend Requests Table (Pending Invites)
+CREATE TABLE IF NOT EXISTS friend_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    status ENUM('pending', 'accepted', 'declined') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_request (sender_id, receiver_id),
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Per-user UI theme preference
 CREATE TABLE IF NOT EXISTS user_themes (
     user_id INT PRIMARY KEY,
