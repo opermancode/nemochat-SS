@@ -3,14 +3,14 @@
     const { Server } = require('socket.io');
     const bcrypt = require('bcryptjs');
     const db = require('./db');
-    require('dotenv').config();
+    require('dotenv').config({ path: __dirname + '/.env' });
 
     const app = express();
     const server = http.createServer(app);
     const io = new Server(server, { cors: { origin: "*" } });
 
     app.use(express.json());
-    app.use(express.static('public'));
+    app.use(express.static(__dirname + '/public'));
 
     // --- Enhanced Registration ---
     app.post('/api/register', async (req, res) => {
@@ -172,7 +172,92 @@
             } catch (err) { console.error("Acceptance error", err); }
         });
 
-        socket.on('private_message', (data) => {
+        socket.on('private_message', async (data) => {
+// --- Qwen AI integration ---
+            if (data.message && data.message.startsWith('/qwen ')) {
+                const query = data.message.replace('/qwen ', '');
+
+                const senderId = data.fromId.toString();
+                const recipientId = data.toId.toString();
+                const senderSocket = onlineUsers.get(senderId);
+                const recipientSocket = onlineUsers.get(recipientId);
+
+                const thinkingMsg = { fromId: data.toId, toId: data.fromId, messageType: 'text', message: '🤖 Qwen is thinking...' };
+                const thinkingMsgPeer = { fromId: data.fromId, toId: data.toId, messageType: 'text', message: '🤖 Qwen is thinking...' };
+
+                if (senderSocket) io.to(senderSocket).emit('qwen_thinking', thinkingMsg);
+                if (recipientSocket) io.to(recipientSocket).emit('qwen_thinking', thinkingMsgPeer);
+
+                try {
+                    const resp = await fetch('http://localhost:11434/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model: 'qwen2.5:1.5b', prompt: query, stream: true })
+                    });
+
+                    const reader = resp.body.getReader();
+                    const decoder = new TextDecoder();
+                    let fullAnswer = '';
+                    let buffer = '';
+                    let streamStarted = false;
+
+                    const streamStartPayload = { fromId: data.toId, toId: data.fromId };
+                    const streamStartPayloadPeer = { fromId: data.fromId, toId: data.toId };
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed) continue;
+                            try {
+                                const parsed = JSON.parse(trimmed);
+                                if (!streamStarted) {
+                                    streamStarted = true;
+                                    if (senderSocket) io.to(senderSocket).emit('qwen_stream_start', streamStartPayload);
+                                    if (recipientSocket) io.to(recipientSocket).emit('qwen_stream_start', streamStartPayloadPeer);
+                                }
+                                if (parsed.response) {
+                                    fullAnswer += parsed.response;
+                                    const chunkPayload = { fromId: data.toId, toId: data.fromId, text: parsed.response };
+                                    const chunkPayloadPeer = { fromId: data.fromId, toId: data.toId, text: parsed.response };
+                                    if (senderSocket) io.to(senderSocket).emit('qwen_chunk', chunkPayload);
+                                    if (recipientSocket) io.to(recipientSocket).emit('qwen_chunk', chunkPayloadPeer);
+                                }
+                            } catch (e) {}
+                        }
+                    }
+
+                    const finalAnswer = fullAnswer.trim() || 'No response';
+                    if (senderSocket) {
+                        io.to(senderSocket).emit('receive_message', {
+                            fromId: data.toId, toId: data.fromId,
+                            messageType: 'text', message: `🤖 Qwen: ${finalAnswer}`
+                        });
+                    }
+                    if (recipientSocket) {
+                        io.to(recipientSocket).emit('receive_message', {
+                            fromId: data.fromId, toId: data.toId,
+                            messageType: 'text', message: `🤖 Qwen: ${finalAnswer}`
+                        });
+                    }
+                } catch (err) {
+                    console.error('Qwen error:', err);
+                    if (senderSocket) {
+                        io.to(senderSocket).emit('receive_message', {
+                            fromId: data.toId, toId: data.fromId,
+                            messageType: 'text', message: '🤖 Qwen: Error reaching model'
+                        });
+                    }
+                }
+                return;
+            }
+
             const target = onlineUsers.get(data.toId.toString());
             if (target) {
                 io.to(target).emit('receive_message', data);
